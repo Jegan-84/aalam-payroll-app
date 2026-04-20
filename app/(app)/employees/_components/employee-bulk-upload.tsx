@@ -29,6 +29,8 @@ const columns: Column<EmployeeBulkRow>[] = [
   { key: 'bank_account_type',   label: 'A/c type',     width: '100px', editor: 'select', options: ['savings', 'current'] },
   { key: 'tax_regime_code',     label: 'Regime',       width: '90px',  editor: 'select', options: ['NEW', 'OLD'] },
   { key: 'lunch_applicable',    label: 'Lunch',        width: '70px',  editor: 'checkbox' },
+  { key: 'shift_applicable',    label: 'Shift',        width: '70px',  editor: 'checkbox' },
+  { key: 'shift_allowance_monthly', label: 'Shift ₹/mo', width: '110px' },
 ]
 
 function validate(row: EmployeeBulkRow): string | null {

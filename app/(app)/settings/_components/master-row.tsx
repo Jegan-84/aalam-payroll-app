@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useState } from 'react'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 
 type FieldDef = {
   key: string
@@ -24,7 +25,7 @@ type Props = {
 }
 
 export function MasterRow({ action, fields, defaults = {}, idKey = 'id', saveLabel = 'Save', submitKey }: Props) {
-  const [state, formAction, pending] = useActionState<Result, FormData>(action, undefined)
+  const [state, formAction, pending] = useBlockingActionState<Result, FormData>(action, undefined)
   const [justSaved, setJustSaved] = useState(false)
   const err = (k: string) => state?.errors?.[k]?.[0]
 

@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 import Link from 'next/link'
 import { applyLeaveAction } from '@/lib/leave/actions'
 import { countLeaveDays } from '@/lib/leave/engine'
@@ -14,7 +15,7 @@ type Props = {
 }
 
 export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDates }: Props) {
-  const [state, action, pending] = useActionState(applyLeaveAction, undefined)
+  const [state, action, pending] = useBlockingActionState(applyLeaveAction, undefined)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
 

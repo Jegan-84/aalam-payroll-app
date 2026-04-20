@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 import Link from 'next/link'
 import { saveDraftDeclarationAction, submitDeclarationAction } from '@/lib/tax/actions'
 import { computeDeductions, type RawDeclaration } from '@/lib/tax/declarations'
@@ -25,8 +26,8 @@ type Props = {
 export function DeclarationForm({
   employeeId, fyStart, fyEnd, fyLabel, annualBasic, annualHra, regime, defaults = {}, locked,
 }: Props) {
-  const [draftState, draftAction, draftPending] = useActionState(saveDraftDeclarationAction, undefined)
-  const [submitState, submitAction, submitPending] = useActionState(submitDeclarationAction, undefined)
+  const [draftState, draftAction, draftPending] = useBlockingActionState(saveDraftDeclarationAction, undefined)
+  const [submitState, submitAction, submitPending] = useBlockingActionState(submitDeclarationAction, undefined)
 
   const [values, setValues] = useState<Defaults>(defaults)
   const set = <K extends keyof Defaults>(k: K, v: Defaults[K]) => setValues((p) => ({ ...p, [k]: v }))

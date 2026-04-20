@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { saveAdjustmentAction, deleteAdjustmentAction } from '@/lib/components/actions'
 
 const fmt = (n: number) => '₹ ' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(n))
@@ -39,7 +40,7 @@ export function AdjustmentsPanel({
 }: Props) {
   const router = useRouter()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
 
   const readonly = ['approved', 'locked', 'paid'].includes(cycleStatus)
 

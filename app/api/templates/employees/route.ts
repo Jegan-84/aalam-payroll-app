@@ -31,8 +31,10 @@ const HEADERS = [
   'bank_account_number',
   'bank_ifsc',
   'bank_account_type',      // savings / current
-  'tax_regime_code',        // NEW / OLD
-  'lunch_applicable',       // TRUE / FALSE
+  'tax_regime_code',          // NEW / OLD
+  'lunch_applicable',         // TRUE / FALSE
+  'shift_applicable',         // TRUE / FALSE — when TRUE, credits a monthly shift allowance
+  'shift_allowance_monthly',  // ₹/month, default 5000 when blank
 ]
 
 const SAMPLE_ROWS: string[][] = [
@@ -42,7 +44,7 @@ const SAMPLE_ROWS: string[][] = [
     '101234567890', '', 'ENG', 'SE', 'CHN-HO', 'AALAM',
     'full_time', '2026-04-01', 'active',
     'HDFC Bank', '50100123456789', 'HDFC0000001', 'savings',
-    'NEW', 'FALSE',
+    'NEW', 'FALSE', 'FALSE', '5000',
   ],
   [
     'AAL003', 'raj.k@aalam.com', 'Raj', 'Kumar', 'Iyer', 'M', '1990-11-02',
@@ -50,7 +52,7 @@ const SAMPLE_ROWS: string[][] = [
     '', '', 'ENG', 'SSE', '', 'AALAM',
     'full_time', '2026-04-10', 'active',
     'ICICI Bank', '000123456789', 'ICIC0000002', 'savings',
-    'OLD', 'TRUE',
+    'OLD', 'TRUE', 'TRUE', '7500',
   ],
 ]
 

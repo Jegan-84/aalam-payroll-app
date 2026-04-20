@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { toggleIncludeVpAction } from '@/lib/payroll/vp-actions'
 
 type Status = 'draft' | 'computed' | 'approved' | 'locked' | 'paid'
@@ -16,7 +17,7 @@ export function VpToggle({
   status: Status
 }) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const readonly = status === 'locked' || status === 'paid'

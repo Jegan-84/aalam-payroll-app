@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import {
   computeFnfAction,
   approveFnfAction,
@@ -13,7 +14,7 @@ type Status = 'draft' | 'computed' | 'approved' | 'paid'
 
 export function FnfControls({ id, status }: { id: string; status: Status }) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const run = (

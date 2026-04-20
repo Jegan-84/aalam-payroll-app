@@ -2,6 +2,7 @@ import { verifySession, getUserWithRoles } from '@/lib/auth/dal'
 import { Sidebar } from './_components/sidebar'
 import { TopBar } from './_components/top-bar'
 import { SnackbarProvider } from '@/components/ui/snackbar'
+import { ActionBlocker } from '@/components/ui/action-blocker'
 
 export default async function AppLayout({
   children,
@@ -18,6 +19,7 @@ export default async function AppLayout({
           <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">{children}</div>
         </main>
       </div>
+      <ActionBlocker />
     </SnackbarProvider>
   )
 }

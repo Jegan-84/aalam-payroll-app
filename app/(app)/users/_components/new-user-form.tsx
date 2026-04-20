@@ -1,14 +1,14 @@
 'use client'
 
-import { useActionState } from 'react'
 import Link from 'next/link'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 import { createUserAction } from '@/lib/users/actions'
 import type { CreateUserState } from '@/lib/users/schemas'
 
 type Role = { code: string; name: string; description: string | null }
 
 export function NewUserForm({ roles }: { roles: Role[] }) {
-  const [state, action, pending] = useActionState<CreateUserState, FormData>(createUserAction, undefined)
+  const [state, action, pending] = useBlockingActionState<CreateUserState, FormData>(createUserAction, undefined)
   const err = (k: string) =>
     (state?.errors as Record<string, string[] | undefined> | undefined)?.[k]?.[0]
 

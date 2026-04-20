@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { saveAttendanceCells } from '@/lib/attendance/actions'
 import {
   MONTH_NAMES,
@@ -34,7 +35,7 @@ export function AttendanceGrid({ employeeId, year, month, initialCells, leaveTyp
   const [cells, setCells] = useState<AttendanceCell[]>(initialCells)
   const [dirty, setDirty] = useState<Set<string>>(new Set())
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
 
   const defaultLeaveTypeId = leaveTypes[0]?.id ?? null
 

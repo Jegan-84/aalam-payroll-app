@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { saveSlabsAction, saveSurchargeAction } from '@/lib/settings/tax-actions'
 
 type Slab = { min: number; max: number | null; rate: number }
@@ -16,7 +17,7 @@ type Props = {
 export function SlabsEditor({ fyStart, fyEnd, regime, kind, initial }: Props) {
   const [rows, setRows] = useState<Slab[]>(initial)
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
 
   const update = (i: number, field: keyof Slab, v: string) => {
     setRows((prev) =>

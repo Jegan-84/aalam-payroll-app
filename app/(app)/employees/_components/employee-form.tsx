@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useForm, type SubmitHandler, type FieldErrors, type Path } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
@@ -108,6 +109,13 @@ function toDefaultValues(d: Defaults): EmployeeFormValues {
 
     tax_regime_code: (s('tax_regime_code') || 'NEW') as EmployeeFormValues['tax_regime_code'],
     lunch_applicable: Boolean(d.lunch_applicable ?? false),
+    shift_applicable: Boolean(d.shift_applicable ?? false),
+    shift_allowance_monthly: (() => {
+      const v = d.shift_allowance_monthly
+      if (v == null) return 5000
+      const n = Number(v)
+      return Number.isFinite(n) ? n : 5000
+    })(),
   }
 }
 
@@ -126,7 +134,7 @@ function valuesToFormData(values: EmployeeInput): FormData {
 
 export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref }: EmployeeFormProps) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
   const [formError, setFormError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -424,6 +432,21 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
                 <input type="checkbox" {...register('lunch_applicable')} />
                 Deduct ₹250/month (the employee takes the company lunch)
               </label>
+            </Field>
+            <Field label="Shift allowance applicable" error={err('shift_applicable')}>
+              <label className="flex h-9 items-center gap-2 text-sm text-slate-800 dark:text-slate-200">
+                <input type="checkbox" {...register('shift_applicable')} />
+                Credit a monthly shift allowance (prorated by paid days)
+              </label>
+            </Field>
+            <Field label="Shift allowance (₹/month)" error={err('shift_allowance_monthly')}>
+              <input
+                type="number"
+                min={0}
+                step="1"
+                className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-950"
+                {...register('shift_allowance_monthly', { valueAsNumber: true })}
+              />
             </Field>
           </Grid>
         </Section>

@@ -1,7 +1,7 @@
 'use client'
 
-import { useActionState } from 'react'
 import Link from 'next/link'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 import { saveEmployeeComponentAction, deleteEmployeeComponentAction } from '@/lib/components/actions'
 import type { ComponentFormErrors, ComponentFormState, EmployeeComponentInput } from '@/lib/components/schemas'
 
@@ -13,7 +13,7 @@ type Props = {
 
 export function ComponentForm({ employeeId, componentId, defaults = {} }: Props) {
   const bound = saveEmployeeComponentAction.bind(null, componentId ?? null)
-  const [state, action, pending] = useActionState<ComponentFormState, FormData>(bound, undefined)
+  const [state, action, pending] = useBlockingActionState<ComponentFormState, FormData>(bound, undefined)
   const err = (k: keyof ComponentFormErrors) => state?.errors?.[k]?.[0]
   const s = (k: keyof EmployeeComponentInput, fb = '') => String(defaults[k] ?? fb)
 

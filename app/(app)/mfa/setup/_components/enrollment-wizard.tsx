@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useBlockingActionState, useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -24,12 +25,12 @@ type Enrollment = { factorId: string; qrCode: string; secret: string }
 export function EnrollmentWizard({ factors, hasVerified }: Props) {
   const router = useRouter()
   const snack = useSnackbar()
-  const [enrolling, startEnroll] = useTransition()
+  const [enrolling, startEnroll] = useBlockingTransition()
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
   const [verifyState, verifyAction, verifyPending] =
-    useActionState<VerifyEnrollmentState, FormData>(verifyEnrollmentAction, undefined)
+    useBlockingActionState<VerifyEnrollmentState, FormData>(verifyEnrollmentAction, undefined)
 
   // Side-effect: when the server action succeeded, close the wizard + show toast.
   // Must be in useEffect, not during render, to avoid React's setState-in-render error.

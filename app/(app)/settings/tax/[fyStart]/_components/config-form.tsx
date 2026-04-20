@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { saveConfigAction } from '@/lib/settings/tax-actions'
 
 type Config = {
@@ -20,7 +21,7 @@ type Props = {
 
 export function ConfigForm({ fyStart, fyEnd, regime, initial }: Props) {
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

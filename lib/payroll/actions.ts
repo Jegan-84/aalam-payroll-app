@@ -114,7 +114,8 @@ export async function computeCycleAction(formData: FormData): Promise<{ ok?: tru
     .select(
       `
       id, employee_code, full_name_snapshot, work_email, employment_status,
-      date_of_joining, date_of_exit, pan_number, tax_regime_code, lunch_applicable,
+      date_of_joining, date_of_exit, pan_number, tax_regime_code,
+      lunch_applicable, shift_applicable, shift_allowance_monthly,
       company_id,
       bank_name, bank_account_number, bank_ifsc,
       department:departments ( name ), designation:designations ( name ), location:locations ( name ),
@@ -333,6 +334,8 @@ export async function computeCycleAction(formData: FormData): Promise<{ ok?: tru
         action: a.action,
       })),
       lunchApplicable: Boolean(e.lunch_applicable),
+      shiftApplicable: Boolean(e.shift_applicable),
+      shiftAllowanceMonthly: Number(e.shift_allowance_monthly ?? 0),
       vpThisCycle: vpByEmp.get(e.id as string) ?? 0,
       loanEmis: loanEmisByEmp.get(e.id as string) ?? [],
     })

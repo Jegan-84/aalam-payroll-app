@@ -105,6 +105,20 @@ export const EmployeeSchema = z
       (v) => v === 'on' || v === 'true' || v === true,
       z.boolean(),
     ),
+
+    // shift — when true, default ₹5,000/month earning (amount editable per employee)
+    shift_applicable: z.preprocess(
+      (v) => v === 'on' || v === 'true' || v === true,
+      z.boolean(),
+    ),
+    shift_allowance_monthly: z.preprocess(
+      (v) => {
+        if (v === '' || v == null) return 5000
+        const n = Number(v)
+        return Number.isFinite(n) ? n : 5000
+      },
+      z.number().min(0),
+    ),
   })
   .refine(
     (v) =>

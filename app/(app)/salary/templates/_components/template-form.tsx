@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { TemplateFormErrors, TemplateFormState } from '@/lib/salary-templates/schemas'
@@ -16,7 +16,7 @@ type Props = {
 }
 
 export function TemplateForm({ mode, action, designations, defaults = {} }: Props) {
-  const [state, formAction, pending] = useActionState(action, undefined)
+  const [state, formAction, pending] = useBlockingActionState(action, undefined)
   const router = useRouter()
   const err = (k: keyof TemplateFormErrors) => state?.errors?.[k]?.[0]
   const v = (k: string, fallback: string = '') => String(defaults[k] ?? fallback)

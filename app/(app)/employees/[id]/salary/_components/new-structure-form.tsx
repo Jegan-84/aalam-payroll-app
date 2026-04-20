@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 import Link from 'next/link'
 import { computeSalaryStructure } from '@/lib/payroll/engine'
 import { computeAnnualTax, type TaxConfig, type TaxSlab, type TaxSurchargeSlab } from '@/lib/payroll/tax'
@@ -73,7 +74,7 @@ export function NewStructureForm({
   oldTaxBundle,
   declaration,
 }: Props) {
-  const [state, formAction, pending] = useActionState(createSalaryStructureAction, undefined)
+  const [state, formAction, pending] = useBlockingActionState(createSalaryStructureAction, undefined)
 
   // Controlled fields so we can live-preview the breakdown
   const [annualCtc, setAnnualCtc] = useState<number>(342840)

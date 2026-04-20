@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { seedFyBalancesAction } from '@/lib/leave/actions'
 
 export function SeedFyButton({ fyStart, fyLabel }: { fyStart: string; fyLabel: string }) {
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const onClick = () => {

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { saveVpAllocationAction } from '@/lib/payroll/vp-actions'
 
 const fmt = (n: number) => '₹ ' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(n))
@@ -33,7 +34,7 @@ export function VpEditor({
 
   const [pctStr, setPctStr] = useState<string>(String(initialPct))
   const [amountStr, setAmountStr] = useState<string>(String(initialAmount))
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [lastEdited, setLastEdited] = useState<'pct' | 'amount'>('pct')
 

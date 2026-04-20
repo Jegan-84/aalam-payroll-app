@@ -1,8 +1,8 @@
 'use client'
 
-import { useActionState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 import { saveCompanyAction } from '@/lib/companies/actions'
 import type { CompanyFormErrors, CompanyFormState, CompanyInput } from '@/lib/companies/schemas'
 
@@ -15,7 +15,7 @@ type Props = {
 
 export function CompanyForm({ mode, defaults = {} }: Props) {
   const router = useRouter()
-  const [state, action, pending] = useActionState<CompanyFormState, FormData>(saveCompanyAction, undefined)
+  const [state, action, pending] = useBlockingActionState<CompanyFormState, FormData>(saveCompanyAction, undefined)
   const err = (k: keyof CompanyFormErrors) => state?.errors?.[k]?.[0]
   const s = (k: keyof CompanyInput, fb: string = '') => String(defaults[k] ?? fb)
 

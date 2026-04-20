@@ -77,6 +77,15 @@ export type MonthlyPayrollInput = {
   lunchApplicable?: boolean
 
   /**
+   * When true, credit a SHIFT earning of `shiftAllowanceMonthly` (prorated by
+   * paid days / days in month, same as BASIC/HRA). HR can Skip / Override via
+   * the Adjustments panel to knock it out for a single cycle.
+   */
+  shiftApplicable?: boolean
+  /** Monthly shift allowance amount (₹). Ignored when `shiftApplicable` is false. */
+  shiftAllowanceMonthly?: number
+
+  /**
    * One-off Variable Pay payout for this cycle. When > 0:
    *   - Added as an un-prorated earning line (code 'VP'), boosting gross & net pay.
    *   - Incremental tax on VP is fully collected in this month's TDS (spike, not spread).
@@ -197,6 +206,19 @@ export function computeMonthlyPayroll(input: MonthlyPayrollInput): MonthlyPayrol
     { code: 'INTERNET',   name: 'Internet Reimbursement', kind: 'earning',   amount: internetMonthly, displayOrder: 50 },
     // Incentive is a standard earning defaulted to ₹0 — HR overrides per cycle in Adjustments.
     { code: 'INCENTIVE',  name: 'Incentive',       kind: 'earning',          amount: 0,             displayOrder: 60 },
+
+    // Shift allowance — per-employee flag + amount on the employee record.
+    //   amount = shiftAllowanceMonthly × (paidDays / daysInMonth)
+    // HR can Skip or Override via the Adjustments panel for a single cycle.
+    ...(input.shiftApplicable && (input.shiftAllowanceMonthly ?? 0) > 0
+      ? [{
+          code: 'SHIFT',
+          name: 'Shift Allowance',
+          kind: 'earning' as const,
+          amount: r0((input.shiftAllowanceMonthly ?? 0) * proration),
+          displayOrder: 65,
+        }]
+      : []),
 
     // Variable Pay — once-a-year payout triggered by cycle's include_vp switch.
     ...(vpAmount > 0

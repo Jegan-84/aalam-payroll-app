@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { saveFnfManualLineAction, deleteFnfLineAction } from '@/lib/fnf/actions'
 
 const fmt = (n: number) => '₹ ' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(n))
@@ -27,7 +28,7 @@ export function ManualLinesPanel({
 }) {
   const router = useRouter()
   const readonly = status === 'approved' || status === 'paid'
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const [code, setCode] = useState('')

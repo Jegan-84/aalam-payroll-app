@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { forecloseLoanAction, writeOffLoanAction } from '@/lib/loans/actions'
 
 export function LoanActions({ id, status }: { id: string; status: 'active' | 'closed' | 'foreclosed' | 'written_off' }) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const run = (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useBlockingActionState } from '@/lib/ui/action-blocker'
 import { resetPasswordAction, updateUserAction, deleteUserAction } from '@/lib/users/actions'
 import type { ResetPasswordState, UpdateUserState } from '@/lib/users/schemas'
 
@@ -19,8 +19,8 @@ type Props = {
 }
 
 export function EditUserForm({ user, roles, isSelf }: Props) {
-  const [updState, updAction, updPending] = useActionState<UpdateUserState, FormData>(updateUserAction, undefined)
-  const [pwdState, pwdAction, pwdPending] = useActionState<ResetPasswordState, FormData>(resetPasswordAction, undefined)
+  const [updState, updAction, updPending] = useBlockingActionState<UpdateUserState, FormData>(updateUserAction, undefined)
+  const [pwdState, pwdAction, pwdPending] = useBlockingActionState<ResetPasswordState, FormData>(resetPasswordAction, undefined)
 
   const updErr = (k: string) =>
     (updState?.errors as Record<string, string[] | undefined> | undefined)?.[k]?.[0]

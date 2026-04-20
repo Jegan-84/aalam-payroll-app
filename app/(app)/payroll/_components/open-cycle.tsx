@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { openCycleAction } from '@/lib/payroll/actions'
 import { MONTH_NAMES } from '@/lib/attendance/engine'
 
@@ -10,7 +11,7 @@ export function OpenCycleButton() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
   const [err, setErr] = useState<string | null>(null)
 
   const submit = () => {

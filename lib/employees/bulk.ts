@@ -31,6 +31,8 @@ export type EmployeeBulkRow = {
   bank_account_type?: string
   tax_regime_code?: 'NEW' | 'OLD' | string
   lunch_applicable?: boolean | string
+  shift_applicable?: boolean | string
+  shift_allowance_monthly?: number | string
 }
 
 export type BulkResult = {
@@ -130,6 +132,13 @@ export async function bulkCreateEmployeesAction(
       bank_account_type: emptyToNull(r.bank_account_type),
       tax_regime_code: r.tax_regime_code === 'OLD' ? 'OLD' : 'NEW',
       lunch_applicable: parseBool(r.lunch_applicable),
+      shift_applicable: parseBool(r.shift_applicable),
+      shift_allowance_monthly: (() => {
+        const v = r.shift_allowance_monthly
+        if (v == null || v === '') return 5000
+        const n = Number(v)
+        return Number.isFinite(n) && n >= 0 ? n : 5000
+      })(),
       created_by: session.userId,
       updated_by: session.userId,
     }

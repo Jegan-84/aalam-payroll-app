@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { savePtPeriodAction } from '@/lib/settings/pt-actions'
 
 type Slab = {
@@ -24,7 +25,7 @@ export function PeriodEditor({ stateCode, effectiveFrom, effectiveTo: initialEff
   const snack = useSnackbar()
   const [rows, setRows] = useState<Slab[]>(initial)
   const [effectiveTo, setEffectiveTo] = useState<string>(initialEffectiveTo ?? '')
-  const [pending, startTransition] = useTransition()
+  const [pending, startTransition] = useBlockingTransition()
 
   const update = (i: number, field: keyof Slab, v: string) => {
     setRows((prev) =>
