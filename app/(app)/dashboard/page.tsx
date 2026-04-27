@@ -1,11 +1,21 @@
 import Link from 'next/link'
-import { getUserWithRoles } from '@/lib/auth/dal'
+import { getUserWithRoles, findCurrentEmployee } from '@/lib/auth/dal'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/ui/page-header'
 import { Stat } from '@/components/ui/stat'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card'
 import { ButtonLink } from '@/components/ui/button'
 import { formatInr } from '@/lib/format'
+import {
+  getUpcomingHolidays,
+  getUpcomingBirthdays,
+  getExpiringCompOff,
+} from '@/lib/dashboard/queries'
+import {
+  UpcomingHolidaysCard,
+  UpcomingBirthdaysCard,
+  ExpiringCompOffCard,
+} from '@/components/dashboard/widgets'
 
 export const metadata = { title: 'Dashboard — PayFlow' }
 
@@ -14,11 +24,16 @@ export default async function DashboardPage() {
   const supabase = await createClient()
 
   // Pull some headline counts — all soft (no throws on empty tables)
-  const [employeesCount, companiesCount, activeStructures, latestCycle] = await Promise.all([
+  const myEmployee = await findCurrentEmployee()
+
+  const [employeesCount, companiesCount, activeStructures, latestCycle, holidays, birthdays, compOffExpiring] = await Promise.all([
     supabase.from('employees').select('id', { count: 'exact', head: true }).eq('employment_status', 'active'),
     supabase.from('companies').select('id', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('salary_structures').select('id', { count: 'exact', head: true }).is('effective_to', null).eq('status', 'active'),
     supabase.from('payroll_cycles').select('id, year, month, status, employee_count, total_net_pay, total_employer_cost').order('year', { ascending: false }).order('month', { ascending: false }).limit(1).maybeSingle(),
+    getUpcomingHolidays({ employeeId: myEmployee?.employeeId, windowDays: 90, limit: 5 }),
+    getUpcomingBirthdays({ windowDays: 30, limit: 6 }),
+    myEmployee ? getExpiringCompOff(myEmployee.employeeId, 14) : Promise.resolve([]),
   ])
 
   const cycle = latestCycle.data as { id: string; year: number; month: number; status: string; employee_count: number; total_net_pay: number; total_employer_cost: number } | null
@@ -87,6 +102,15 @@ export default async function DashboardPage() {
             </ul>
           </CardBody>
         </Card>
+      </div>
+
+      {compOffExpiring.length > 0 && (
+        <ExpiringCompOffCard grants={compOffExpiring} applyHref="/leave/new" />
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <UpcomingHolidaysCard holidays={holidays} viewAllHref="/settings/holidays" />
+        <UpcomingBirthdaysCard birthdays={birthdays} viewerEmployeeId={myEmployee?.employeeId} />
       </div>
 
       <Card>

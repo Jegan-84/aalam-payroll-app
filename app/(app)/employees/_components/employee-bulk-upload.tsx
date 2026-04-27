@@ -5,7 +5,7 @@ import { bulkCreateEmployeesAction, type EmployeeBulkRow } from '@/lib/employees
 
 const columns: Column<EmployeeBulkRow>[] = [
   { key: 'employee_code',       label: 'Code',         width: '110px', required: true },
-  { key: 'work_email',          label: 'Work email',   width: '220px', required: true },
+  { key: 'work_email',          label: 'Work email',   width: '220px' },
   { key: 'first_name',          label: 'First',        width: '120px', required: true },
   { key: 'middle_name',         label: 'Middle',       width: '110px' },
   { key: 'last_name',           label: 'Last',         width: '120px', required: true },

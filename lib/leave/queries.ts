@@ -206,6 +206,38 @@ export const getHolidaysInRange = cache(async (fromIso: string, toIso: string): 
   return new Set((data ?? []).map((h) => h.holiday_date as string))
 })
 
+// Employee-aware holiday lookup: returns the set of dates that apply to this
+// employee's primary project and location. Holidays with NULL project_id or
+// NULL location_id apply to everyone on that axis.
+export const getHolidaysForEmployeeInRange = cache(async (
+  employeeId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<Set<string>> => {
+  await verifySession()
+  const supabase = await createClient()
+  const { data: emp } = await supabase
+    .from('employees')
+    .select('primary_project_id, location_id')
+    .eq('id', employeeId)
+    .maybeSingle()
+  const primaryProjectId = (emp?.primary_project_id as number | null | undefined) ?? null
+  const locationId = (emp?.location_id as number | null | undefined) ?? null
+
+  let q = supabase
+    .from('holidays')
+    .select('holiday_date, project_id, location_id')
+    .gte('holiday_date', fromIso)
+    .lte('holiday_date', toIso)
+  // project_id filter: null OR matches primary project.
+  q = primaryProjectId == null ? q.is('project_id', null) : q.or(`project_id.is.null,project_id.eq.${primaryProjectId}`)
+  // location_id filter: null OR matches employee's location.
+  q = locationId == null ? q.is('location_id', null) : q.or(`location_id.is.null,location_id.eq.${locationId}`)
+
+  const { data } = await q
+  return new Set((data ?? []).map((h) => h.holiday_date as string))
+})
+
 export const getLeaveContext = cache(async () => {
   const [weeklyOffDays, leaveTypes] = await Promise.all([getWeeklyOffDays(), getLeaveTypes()])
   return { weeklyOffDays, leaveTypes }

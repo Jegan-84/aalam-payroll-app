@@ -15,7 +15,7 @@ type PP = Promise<{ cycleId: string; employeeId: string }>
 type Comp = {
   code: string
   name: string
-  kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement' | 'variable'
+  kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement' | 'variable' | 'perquisite'
   amount: number
   display_order: number
 }
@@ -43,6 +43,7 @@ export default async function ItemDetailPage({ params }: { params: PP }) {
   const deductions = comps.filter((c) => c.kind === 'deduction')
   const retirals = comps.filter((c) => c.kind === 'employer_retiral')
   const reimb = comps.filter((c) => c.kind === 'reimbursement')
+  const perquisites = comps.filter((c) => c.kind === 'perquisite')
 
   return (
     <div className="max-w-3xl space-y-5">
@@ -91,6 +92,16 @@ export default async function ItemDetailPage({ params }: { params: PP }) {
         {reimb.length > 0 && (
           <Section title="Reimbursements (monthly share)">
             {reimb.map((c) => <Line key={c.code} label={c.name} amount={c.amount} />)}
+          </Section>
+        )}
+        {perquisites.length > 0 && (
+          <Section title="Notional perquisites (taxable, not paid)">
+            {perquisites.map((c) => <Line key={c.code} label={c.name} amount={c.amount} />)}
+            <tr>
+              <td colSpan={2} className="pt-1 text-[11px] text-slate-500">
+                Folded into annualised gross for TDS only. Does not affect net pay, PF, or ESI.
+              </td>
+            </tr>
           </Section>
         )}
       </div>

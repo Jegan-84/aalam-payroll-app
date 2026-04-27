@@ -1,9 +1,15 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { LoginForm } from './login-form'
 
 export const metadata = { title: 'Sign in — PayFlow' }
 
-export default function LoginPage() {
+type SP = Promise<{ reset?: string }>
+
+export default async function LoginPage({ searchParams }: { searchParams: SP }) {
+  const sp = await searchParams
+  const justReset = sp.reset === '1'
+
   return (
     <div className="w-full max-w-md">
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-xl backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/90">
@@ -19,7 +25,20 @@ export default function LoginPage() {
           </p>
         </div>
         <div className="px-8 pb-8 pt-2">
+          {justReset && (
+            <div
+              role="status"
+              className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200"
+            >
+              Password updated. Sign in with your new password.
+            </div>
+          )}
           <LoginForm />
+          <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
+            <Link href="/forgot-password" className="font-medium text-brand-700 hover:underline dark:text-brand-400">
+              Forgot your password?
+            </Link>
+          </p>
         </div>
       </div>
       <p className="mt-4 text-center text-[11px] text-slate-500 dark:text-slate-400">

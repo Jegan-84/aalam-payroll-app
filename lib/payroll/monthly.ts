@@ -16,6 +16,7 @@ import { computeAnnualTax, type TaxConfig, type TaxSlab, type TaxSurchargeSlab }
 import { professionalTaxMonthly } from './engine'
 import type { EpfMode, PtSlab, StatutoryConfig } from './types'
 import { computeDeductions, type RawDeclaration } from '@/lib/tax/declarations'
+import { evalFormula } from './formula'
 
 const r0 = (n: number): number => Math.round(n)
 const r2 = (n: number): number => Math.round(n * 100) / 100
@@ -98,6 +99,32 @@ export type MonthlyPayrollInput = {
    * `min(emi_amount, outstanding_balance)` — the engine does not re-derive it.
    */
   loanEmis?: Array<{ code: string; name: string; amount: number }>
+
+  /**
+   * Loan perquisite lines under s.17(2)(viii). Each is a NOTIONAL taxable
+   * benefit — shown on the payslip for transparency, included in annualised
+   * TDS projection, but NOT in net pay, PF, or ESI base. Caller pre-computes
+   *   monthly_perq = outstanding_balance × (sbi_rate / 100) / 12
+   * and only passes loans with `outstanding > ₹20,000`.
+   */
+  loanPerquisites?: Array<{ code: string; name: string; monthlyAmount: number }>
+
+  /**
+   * HR-defined custom components (from `pay_components WHERE is_custom AND is_active`).
+   * Evaluated by the formula engine after the statutory components, so formulas
+   * can reference `basic`, `hra`, `gross`, etc. Applied in `display_order`.
+   */
+  customComponents?: Array<{
+    code: string
+    name: string
+    kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement'
+    calculation_type: 'fixed' | 'percent_of_basic' | 'percent_of_gross' | 'formula'
+    percent_value: number | null
+    cap_amount: number | null
+    formula: string | null
+    prorate: boolean
+    display_order: number
+  }>
 }
 
 const LUNCH_DEDUCTION = 250    // org-wide default
@@ -105,7 +132,7 @@ const LUNCH_DEDUCTION = 250    // org-wide default
 export type PayrollLine = {
   code: string
   name: string
-  kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement' | 'variable'
+  kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement' | 'variable' | 'perquisite'
   amount: number               // monthly amount for this cycle
   displayOrder: number
 }
@@ -134,11 +161,17 @@ function pfForMode(basicMonthly: number, statutory: StatutoryConfig, mode: EpfMo
 export function computeMonthlyPayroll(input: MonthlyPayrollInput): MonthlyPayrollOutput {
   const proration = input.daysInMonth > 0 ? input.paidDays / input.daysInMonth : 0
 
+  // CTC-structure percentages come from statutory_config (was hardcoded).
+  const basicPct = input.statutory.basic_percent_of_gross / 100
+  const hraPct   = input.statutory.hra_percent_of_basic / 100
+  const convPct  = input.statutory.conv_percent_of_basic / 100
+  const convCap  = input.statutory.conv_monthly_cap
+
   // Prorated earnings
   const grossProrated = r0(input.monthlyGross * proration)
-  const basicProrated = r0(grossProrated * 0.5)
-  const hraProrated   = r0(basicProrated * 0.5)
-  const convProrated  = Math.min(r0(basicProrated * 0.1), r0(800 * proration))
+  const basicProrated = r0(grossProrated * basicPct)
+  const hraProrated   = r0(basicProrated * hraPct)
+  const convProrated  = Math.min(r0(basicProrated * convPct), r0(convCap * proration))
   const otherProrated = grossProrated - basicProrated - hraProrated - convProrated
 
   // Employee deductions — from prorated figures
@@ -151,8 +184,8 @@ export function computeMonthlyPayroll(input: MonthlyPayrollInput): MonthlyPayrol
 
   // TDS: annual tax on full-year projected gross (not prorated), divided by 12.
   // This keeps monthly TDS stable across the FY even if attendance dips one month.
-  const annualBasic = input.annualGross * 0.5
-  const annualHra = annualBasic * 0.5
+  const annualBasic = input.annualGross * basicPct
+  const annualHra = annualBasic * hraPct
   const deductions =
     input.taxRegime === 'OLD'
       ? computeDeductions(input.declaration ?? null, {
@@ -160,8 +193,14 @@ export function computeMonthlyPayroll(input: MonthlyPayrollInput): MonthlyPayrol
           basicAnnual: annualBasic,
         })
       : null
+  // Loan perquisite — notional taxable benefit folded into the annualised gross
+  // for TDS only. Each line here reflects THIS month's figure (declining balance × rate / 12).
+  // Using × 12 is conservative; the real figure declines as EMIs amortise.
+  const perqLines = input.loanPerquisites ?? []
+  const perquisiteAnnualised = perqLines.reduce((s, p) => s + Math.max(0, Math.round(p.monthlyAmount)) * 12, 0)
+
   const annualTax = computeAnnualTax({
-    annualGross: input.annualGross,
+    annualGross: input.annualGross + perquisiteAnnualised,
     slabs: input.taxSlabs,
     config: input.taxConfig,
     surchargeSlabs: input.taxSurchargeSlabs,
@@ -174,7 +213,7 @@ export function computeMonthlyPayroll(input: MonthlyPayrollInput): MonthlyPayrol
   let tds = annualTax.monthly
   if (vpAmount > 0) {
     const annualTaxWithVp = computeAnnualTax({
-      annualGross: input.annualGross + vpAmount,
+      annualGross: input.annualGross + perquisiteAnnualised + vpAmount,
       slabs: input.taxSlabs,
       config: input.taxConfig,
       surchargeSlabs: input.taxSurchargeSlabs,
@@ -268,6 +307,80 @@ export function computeMonthlyPayroll(input: MonthlyPayrollInput): MonthlyPayrol
       amount: r0(l.amount),
       displayOrder: loanOrder++,
     })
+  }
+
+  // --- Loan perquisites (notional, informational — already folded into TDS above) ---
+  let perqOrder = 680
+  for (const p of perqLines) {
+    const amt = Math.max(0, r0(p.monthlyAmount))
+    if (amt <= 0) continue
+    lines.push({
+      code: p.code,
+      name: p.name,
+      kind: 'perquisite',
+      amount: amt,
+      displayOrder: perqOrder++,
+    })
+  }
+
+  // --- HR-defined custom components ---------------------------------------
+  // Evaluated against the already-computed statutory values (basic, hra, etc.).
+  // Custom rows are applied in display_order. Later custom rows CANNOT see
+  // earlier custom rows' output (V1 simplification — avoids ordering hazards).
+  if ((input.customComponents ?? []).length > 0) {
+    const vars: Record<string, number> = {
+      gross: input.monthlyGross,
+      grossProrated,
+      basic: r0(input.monthlyGross * 0.5),
+      basicProrated,
+      hra: r0(input.monthlyGross * 0.5 * 0.5),
+      hraProrated,
+      conv: Math.min(r0(input.monthlyGross * 0.5 * 0.1), 800),
+      convProrated,
+      paidDays: input.paidDays,
+      daysInMonth: input.daysInMonth,
+      proration,
+      annualCtc: input.annualFixedCtc,
+      annualGross: input.annualGross,
+    }
+
+    const sortedCustom = [...(input.customComponents ?? [])].sort(
+      (a, b) => a.display_order - b.display_order,
+    )
+    for (const cc of sortedCustom) {
+      let raw = 0
+      switch (cc.calculation_type) {
+        case 'fixed':
+          raw = Number(cc.cap_amount ?? 0)
+          break
+        case 'percent_of_basic':
+          raw = (vars.basic * Number(cc.percent_value ?? 0)) / 100
+          break
+        case 'percent_of_gross':
+          raw = (vars.gross * Number(cc.percent_value ?? 0)) / 100
+          break
+        case 'formula': {
+          if (!cc.formula) continue
+          const res = evalFormula(cc.formula, vars)
+          if (!res.ok) continue   // bad formula — skip silently; UI validates on save
+          raw = res.value
+          break
+        }
+      }
+      if (cc.prorate) raw = raw * proration
+      if (cc.cap_amount != null && cc.calculation_type !== 'fixed' && raw > Number(cc.cap_amount)) {
+        raw = Number(cc.cap_amount)
+      }
+      const amount = r0(raw)
+      if (amount <= 0) continue
+      lines.push({
+        code: cc.code,
+        name: cc.name,
+        kind: cc.kind,
+        amount,
+        displayOrder: cc.display_order,
+      })
+    }
   }
 
   let addOrder = 700

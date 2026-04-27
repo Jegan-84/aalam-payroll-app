@@ -173,10 +173,11 @@ insert into public.statutory_config (
 insert into public.leave_types
   (code, name, is_paid, annual_quota_days, accrual_type, carry_forward_max_days, encashable_on_exit, display_order)
 values
-  ('CL',  'Casual Leave',    true,  12.00, 'annual', 0,   false, 10),
-  ('SL',  'Sick Leave',      true,  12.00, 'annual', 0,   false, 20),
-  ('EL',  'Earned Leave',    true,  15.00, 'annual', 30,  true,  30),
-  ('LOP', 'Loss of Pay',     false,  0.00, 'none',   0,   false, 99)
+  ('PL',  'Paid Leave',      true,  12.00, 'half_yearly', 0,   false, 10),
+  ('SL',  'Sick Leave',      true,  12.00, 'half_yearly', 0,   false, 20),
+  ('EL',  'Earned Leave',    true,   6.00, 'annual',      6,   true,  30),
+  ('COMP_OFF', 'Compensatory Off', true, 0, 'none',       0,   false, 25),
+  ('LOP', 'Loss of Pay',     false,  0.00, 'none',        0,   false, 99)
 on conflict (code) do nothing;
 
 -- -----------------------------------------------------------------------------

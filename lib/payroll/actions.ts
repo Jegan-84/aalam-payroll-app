@@ -4,12 +4,14 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifySession } from '@/lib/auth/dal'
 import {
+  MONTH_NAMES,
   daysInMonth,
   defaultStatusForDate,
   iterateMonthDates,
   summarizeMonth,
   type AttendanceCell,
 } from '@/lib/attendance/engine'
+import { bulkNotifyEmployees } from '@/lib/notifications/service'
 import { computeMonthlyPayroll } from '@/lib/payroll/monthly'
 import { getTaxSlabsForFy } from '@/lib/payroll/queries'
 import { getOrgPtState, getPtSlabs, getStatutoryConfig } from '@/lib/salary/queries'
@@ -210,6 +212,69 @@ export async function computeCycleAction(formData: FormData): Promise<{ ok?: tru
     adjByEmp.set(a.employee_id, arr)
   }
 
+  // Pre-fetch pending year-end leave encashments — paid as LEAVE_ENC earning line.
+  type LeaveEnc = { id: string; amount: number; year: number; days: number }
+  const encashmentsByEmp = new Map<string, LeaveEnc>()
+  const { data: pendingEnc } = await admin
+    .from('leave_encashment_queue')
+    .select('id, employee_id, leave_year, pl_days_encashed, encashment_amount')
+    .in('employee_id', empIds)
+    .eq('status', 'pending')
+  for (const e of pendingEnc ?? []) {
+    encashmentsByEmp.set(e.employee_id as string, {
+      id: e.id as string,
+      amount: Number(e.encashment_amount),
+      year: Number(e.leave_year),
+      days: Number(e.pl_days_encashed),
+    })
+  }
+
+  // Pre-fetch approved-but-unpaid reimbursement claims — paid in this cycle.
+  type ReimbLine = { code: string; name: string; amount: number; id: string }
+  const reimbursementsByEmp = new Map<string, ReimbLine[]>()
+  const { data: approvedClaims } = await admin
+    .from('reimbursement_claims')
+    .select('id, employee_id, category, sub_category, amount')
+    .in('employee_id', empIds)
+    .eq('status', 'approved')
+  for (const c of approvedClaims ?? []) {
+    const shortId = String(c.id).replace(/-/g, '').slice(0, 8).toUpperCase()
+    const arr = reimbursementsByEmp.get(c.employee_id as string) ?? []
+    arr.push({
+      id: c.id as string,
+      code: `REIMB_${shortId}`,
+      name: `Reimbursement (${c.category}${c.sub_category ? ` · ${c.sub_category}` : ''})`,
+      amount: Number(c.amount),
+    })
+    reimbursementsByEmp.set(c.employee_id as string, arr)
+  }
+
+  // Pre-fetch active custom pay components (org-wide formula/fixed rows
+  // defined in /settings/components). Applied uniformly to every employee.
+  const { data: customRows } = await admin
+    .from('pay_components')
+    .select('code, name, kind, calculation_type, percent_value, cap_amount, formula, prorate, display_order')
+    .eq('is_custom', true)
+    .eq('is_active', true)
+    .order('display_order')
+  type CustomRow = {
+    code: string
+    name: string
+    kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement'
+    calculation_type: 'fixed' | 'percent_of_basic' | 'percent_of_gross' | 'formula'
+    percent_value: number | null
+    cap_amount: number | null
+    formula: string | null
+    prorate: boolean
+    display_order: number
+  }
+  const customComponents = ((customRows ?? []) as unknown as CustomRow[]).map((r) => ({
+    ...r,
+    percent_value: r.percent_value == null ? null : Number(r.percent_value),
+    cap_amount: r.cap_amount == null ? null : Number(r.cap_amount),
+    display_order: Number(r.display_order),
+  }))
+
   // Pre-fetch VP allocations (only applied when cycle.include_vp is true).
   const vpByEmp = new Map<string, number>()
   if (cycle.include_vp) {
@@ -224,16 +289,28 @@ export async function computeCycleAction(formData: FormData): Promise<{ ok?: tru
 
   // Pre-fetch active loans whose start (year, month) has arrived by this cycle.
   // Deduction = min(emi, outstanding_balance). Code = LOAN_<first 12 hex chars of id>.
+  // Perquisite = outstanding × (sbi_rate − actual_rate)/100/12 when outstanding > ₹20,000 (s.17(2)(viii)).
   type LoanEmi = { code: string; name: string; amount: number }
+  type LoanPerq = { code: string; name: string; monthlyAmount: number }
   const loanEmisByEmp = new Map<string, LoanEmi[]>()
+  const loanPerqsByEmp = new Map<string, LoanPerq[]>()
   const { data: loans } = await admin
     .from('employee_loans')
-    .select('id, employee_id, loan_type, emi_amount, outstanding_balance, start_year, start_month')
+    .select('id, employee_id, loan_type, emi_amount, outstanding_balance, interest_rate_percent, start_year, start_month')
     .eq('status', 'active')
     .in('employee_id', empIds)
     .or(
       `start_year.lt.${year},and(start_year.eq.${year},start_month.lte.${month})`,
     )
+
+  const { data: orgRow } = await admin
+    .from('organizations')
+    .select('sbi_loan_perquisite_rate_percent')
+    .limit(1)
+    .maybeSingle()
+  const sbiRate = Number(orgRow?.sbi_loan_perquisite_rate_percent ?? 9.25)
+  const PERQUISITE_EXEMPT_THRESHOLD = 20000
+
   for (const l of loans ?? []) {
     const outstanding = Number(l.outstanding_balance)
     if (outstanding <= 0) continue
@@ -246,6 +323,23 @@ export async function computeCycleAction(formData: FormData): Promise<{ ok?: tru
       amount,
     })
     loanEmisByEmp.set(l.employee_id as string, arr)
+
+    // Perquisite: only when outstanding > ₹20k AND there's a concessional rate spread.
+    if (outstanding > PERQUISITE_EXEMPT_THRESHOLD) {
+      const concessionalRate = Math.max(0, sbiRate - Number(l.interest_rate_percent ?? 0))
+      if (concessionalRate > 0) {
+        const monthlyPerq = Math.round((outstanding * (concessionalRate / 100)) / 12)
+        if (monthlyPerq > 0) {
+          const parr = loanPerqsByEmp.get(l.employee_id as string) ?? []
+          parr.push({
+            code: `PERQ_${id12}`,
+            name: `Loan perquisite (${l.loan_type})`,
+            monthlyAmount: monthlyPerq,
+          })
+          loanPerqsByEmp.set(l.employee_id as string, parr)
+        }
+      }
+    }
   }
 
   type EmpRow = NonNullable<typeof employees>[number]
@@ -319,13 +413,36 @@ export async function computeCycleAction(formData: FormData): Promise<{ ok?: tru
         regime === 'OLD'
           ? (declByEmp.get(e.id as string) as unknown as import('@/lib/tax/declarations').RawDeclaration | undefined) ?? null
           : null,
-      recurringLines: (recurringByEmp.get(e.id as string) ?? []).map((r) => ({
-        code: r.code,
-        name: r.name,
-        kind: r.kind,
-        amount: Number(r.monthly_amount),
-        prorate: Boolean(r.prorate),
-      })),
+      recurringLines: [
+        ...(recurringByEmp.get(e.id as string) ?? []).map((r) => ({
+          code: r.code,
+          name: r.name,
+          kind: r.kind,
+          amount: Number(r.monthly_amount),
+          prorate: Boolean(r.prorate),
+        })),
+        // Approved reimbursements ride through recurringLines so HR can still
+        // Skip/Override them via the per-cycle Adjustments panel.
+        ...(reimbursementsByEmp.get(e.id as string) ?? []).map((r) => ({
+          code: r.code,
+          name: r.name,
+          kind: 'earning' as const,
+          amount: r.amount,
+          prorate: false,
+        })),
+        // Year-end leave encashment — flows as a one-off earning.
+        ...((() => {
+          const enc = encashmentsByEmp.get(e.id as string)
+          if (!enc || enc.amount <= 0) return []
+          return [{
+            code: `LEAVE_ENC_${enc.year}`,
+            name: `Leave encashment (${enc.days}d · ${enc.year})`,
+            kind: 'earning' as const,
+            amount: enc.amount,
+            prorate: false,
+          }]
+        })()),
+      ],
       adjustments: (adjByEmp.get(e.id as string) ?? []).map((a) => ({
         code: a.code,
         name: a.name,
@@ -338,6 +455,8 @@ export async function computeCycleAction(formData: FormData): Promise<{ ok?: tru
       shiftAllowanceMonthly: Number(e.shift_allowance_monthly ?? 0),
       vpThisCycle: vpByEmp.get(e.id as string) ?? 0,
       loanEmis: loanEmisByEmp.get(e.id as string) ?? [],
+      loanPerquisites: loanPerqsByEmp.get(e.id as string) ?? [],
+      customComponents,
     })
 
     const { data: item, error: insertErr } = await admin
@@ -472,6 +591,23 @@ export async function approveCycleAction(formData: FormData): Promise<{ ok?: tru
   await lockAttendanceForCycle(admin, cycle.year as number, cycle.month as number, cycleId)
   await writeTdsLedgerForCycle(admin, cycleId, cycle.year as number, cycle.month as number)
   await writeLoanRepaymentsForCycle(admin, cycleId, cycle.year as number, cycle.month as number)
+  await markReimbursementsPaidForCycle(admin, cycleId)
+  await markLeaveEncashmentPaidForCycle(admin, cycleId)
+
+  // Notify each employee that their payslip is ready.
+  const { data: itemsForNotify } = await admin
+    .from('payroll_items')
+    .select('employee_id')
+    .eq('cycle_id', cycleId)
+  const monthLabel = `${MONTH_NAMES[(cycle.month as number) - 1]} ${cycle.year}`
+  const empIdsForNotify = (itemsForNotify ?? []).map((i) => i.employee_id as string)
+  await bulkNotifyEmployees(empIdsForNotify, {
+    kind: 'payslip.published',
+    title: `Payslip ready — ${monthLabel}`,
+    body: `Your payslip for ${monthLabel} is ready to download.`,
+    href: `/me/payslips`,
+    severity: 'success',
+  })
 
   await admin.from('audit_log').insert({
     actor_user_id: session.userId,
@@ -544,6 +680,8 @@ export async function reopenCycleAction(formData: FormData): Promise<{ ok?: true
   await unlockAttendanceForCycle(admin, cycle.year as number, cycle.month as number)
   await admin.from('tds_ledger').delete().eq('cycle_id', cycleId)
   await reverseLoanRepaymentsForCycle(admin, cycleId)
+  await unmarkReimbursementsPaidForCycle(admin, cycleId)
+  await unmarkLeaveEncashmentPaidForCycle(admin, cycleId)
 
   await admin.from('audit_log').insert({
     actor_user_id: session.userId,
@@ -797,4 +935,89 @@ async function reverseLoanRepaymentsForCycle(admin: Admin, cycleId: string): Pro
     }
     await admin.from('employee_loans').update(patch).eq('id', loanId)
   }
+}
+
+// -----------------------------------------------------------------------------
+// Reimbursements — mark approved claims as paid when cycle is approved, and
+// reverse them back to 'approved' when the cycle is reopened.
+// Matches claims by REIMB_<id-prefix> component codes emitted during compute.
+// -----------------------------------------------------------------------------
+async function markReimbursementsPaidForCycle(admin: Admin, cycleId: string): Promise<void> {
+  const { data: comps } = await admin
+    .from('payroll_item_components')
+    .select('code, item:payroll_items!inner ( cycle_id )')
+    .eq('item.cycle_id', cycleId)
+    .like('code', 'REIMB_%')
+    .eq('kind', 'earning')
+  const prefixes = new Set<string>()
+  for (const c of comps ?? []) {
+    const prefix = String(c.code).slice(6).toLowerCase()
+    if (prefix) prefixes.add(prefix)
+  }
+  if (prefixes.size === 0) return
+
+  const { data: claims } = await admin
+    .from('reimbursement_claims')
+    .select('id')
+    .eq('status', 'approved')
+  for (const cl of claims ?? []) {
+    const cid = String(cl.id).replace(/-/g, '').slice(0, 8).toLowerCase()
+    if (!prefixes.has(cid)) continue
+    await admin
+      .from('reimbursement_claims')
+      .update({
+        status: 'paid',
+        paid_in_cycle_id: cycleId,
+        paid_at: new Date().toISOString(),
+      })
+      .eq('id', cl.id)
+  }
+}
+
+async function unmarkReimbursementsPaidForCycle(admin: Admin, cycleId: string): Promise<void> {
+  await admin
+    .from('reimbursement_claims')
+    .update({ status: 'approved', paid_in_cycle_id: null, paid_at: null })
+    .eq('paid_in_cycle_id', cycleId)
+    .eq('status', 'paid')
+}
+
+// -----------------------------------------------------------------------------
+// Leave encashment — mark pending rows paid when cycle approves, unmark on reopen.
+// Matched by LEAVE_ENC_<year> component codes emitted during compute.
+// -----------------------------------------------------------------------------
+async function markLeaveEncashmentPaidForCycle(admin: Admin, cycleId: string): Promise<void> {
+  const { data: comps } = await admin
+    .from('payroll_item_components')
+    .select('code, item:payroll_items!inner ( cycle_id, employee_id )')
+    .eq('item.cycle_id', cycleId)
+    .like('code', 'LEAVE_ENC_%')
+    .eq('kind', 'earning')
+  type Row = { code: string; item: { cycle_id: string; employee_id: string } | { cycle_id: string; employee_id: string }[] }
+  const pairs: Array<{ employee_id: string; leave_year: number }> = []
+  for (const c of (comps ?? []) as unknown as Row[]) {
+    const item = Array.isArray(c.item) ? c.item[0] : c.item
+    const year = Number(String(c.code).slice('LEAVE_ENC_'.length))
+    if (!Number.isFinite(year)) continue
+    pairs.push({ employee_id: item.employee_id, leave_year: year })
+  }
+  if (pairs.length === 0) return
+
+  const paidAt = new Date().toISOString()
+  for (const p of pairs) {
+    await admin
+      .from('leave_encashment_queue')
+      .update({ status: 'paid', paid_in_cycle_id: cycleId, paid_at: paidAt })
+      .eq('employee_id', p.employee_id)
+      .eq('leave_year', p.leave_year)
+      .eq('status', 'pending')
+  }
+}
+
+async function unmarkLeaveEncashmentPaidForCycle(admin: Admin, cycleId: string): Promise<void> {
+  await admin
+    .from('leave_encashment_queue')
+    .update({ status: 'pending', paid_in_cycle_id: null, paid_at: null })
+    .eq('paid_in_cycle_id', cycleId)
+    .eq('status', 'paid')
 }

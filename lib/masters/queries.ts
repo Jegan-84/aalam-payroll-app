@@ -20,3 +20,21 @@ export async function listDesignations(): Promise<DesignationRow[]> {
   if (error) throw new Error(error.message)
   return (data ?? []) as unknown as DesignationRow[]
 }
+
+export type ProjectRow = {
+  id: number
+  code: string
+  name: string
+  client: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export async function listProjects(opts?: { activeOnly?: boolean }): Promise<ProjectRow[]> {
+  const supabase = await createClient()
+  let q = supabase.from('projects').select('*').order('name')
+  if (opts?.activeOnly) q = q.eq('is_active', true)
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as ProjectRow[]
+}

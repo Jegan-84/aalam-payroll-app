@@ -80,6 +80,16 @@ export async function createLoanAction(
     summary: `Sanctioned ${loanType} loan ₹${principal} for ${emp.id}`,
   })
 
+  const { createNotification } = await import('@/lib/notifications/service')
+  await createNotification({
+    employeeId,
+    kind: 'loan.sanctioned',
+    title: `Loan sanctioned — ₹${principal}`,
+    body: `A ${loanType} loan of ₹${principal} has been sanctioned. EMIs (₹${emi}/month) will auto-deduct from your salary starting ${startYear}-${String(startMonth).padStart(2, '0')}.`,
+    href: '/me/loans',
+    severity: 'success',
+  })
+
   revalidatePath(`/employees/${employeeId}/loans`)
   revalidatePath('/loans')
   return { ok: true, id: data.id as string }

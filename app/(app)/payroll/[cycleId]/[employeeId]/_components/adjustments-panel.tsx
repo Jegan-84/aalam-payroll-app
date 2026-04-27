@@ -10,7 +10,7 @@ const fmt = (n: number) => '₹ ' + new Intl.NumberFormat('en-IN', { maximumFrac
 type ItemComponent = {
   code: string
   name: string
-  kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement' | 'variable'
+  kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement' | 'variable' | 'perquisite'
   amount: number
 }
 

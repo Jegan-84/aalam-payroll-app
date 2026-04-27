@@ -13,7 +13,7 @@ const HEADERS = [
 ]
 
 const SAMPLE_ROWS: string[][] = [
-  ['AAL001', 'CL', '2026-05-04', '2026-05-05', 'Family function'],
+  ['AAL001', 'PL', '2026-05-04', '2026-05-05', 'Family function'],
   ['AAL002', 'SL', '2026-05-12', '2026-05-12', 'Fever'],
   ['AAL003', 'EL', '2026-06-15', '2026-06-20', 'Vacation'],
 ]

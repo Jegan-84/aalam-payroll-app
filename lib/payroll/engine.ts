@@ -96,7 +96,7 @@ function solveGross(input: CalcInput): { annualGross: number; iterations: number
   for (let i = 0; i < MAX_ITER; i++) {
     iterations = i + 1
     const monthlyGross = annualGross / 12
-    const basicMonthly = monthlyGross * 0.5
+    const basicMonthly = monthlyGross * (statutory.basic_percent_of_gross / 100)
 
     const pfEr = pfEmployer(basicMonthly, statutory, epfMode)
     const esiEr = esiEmployerMonthly(monthlyGross, statutory)
@@ -123,10 +123,16 @@ export function computeSalaryStructure(input: CalcInput): CalcOutput {
   const { annualGross, iterations, converged } = solveGross(input)
   const monthlyGross = annualGross / 12
 
+  // CTC-structure percentages (from statutory_config).
+  const basicPct = statutory.basic_percent_of_gross / 100
+  const hraPct   = statutory.hra_percent_of_basic / 100
+  const convPct  = statutory.conv_percent_of_basic / 100
+  const convCap  = statutory.conv_monthly_cap
+
   // Earnings
-  const basicMonthly = monthlyGross * 0.5
-  const hraMonthly   = basicMonthly * 0.5
-  const convMonthly  = Math.min(basicMonthly * 0.1, 800)
+  const basicMonthly = monthlyGross * basicPct
+  const hraMonthly   = basicMonthly * hraPct
+  const convMonthly  = Math.min(basicMonthly * convPct, convCap)
   const otherAllowMonthly = monthlyGross - basicMonthly - hraMonthly - convMonthly
 
   // Employee deductions
