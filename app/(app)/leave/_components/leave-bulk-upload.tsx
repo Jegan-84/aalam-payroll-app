@@ -5,7 +5,7 @@ import { bulkCreateLeaveApplicationsAction, type LeaveBulkRow } from '@/lib/leav
 
 const columns: Column<LeaveBulkRow>[] = [
   { key: 'employee_code',   label: 'Employee code', width: '140px', required: true },
-  { key: 'leave_type_code', label: 'Leave type',    width: '110px', required: true, editor: 'select', options: ['CL', 'SL', 'EL', 'LOP'] },
+  { key: 'leave_type_code', label: 'Leave type',    width: '110px', required: true, editor: 'select', options: ['PL', 'SL', 'EL', 'COMP_OFF', 'LOP'] },
   { key: 'from_date',       label: 'From',          width: '150px', required: true, editor: 'date' },
   { key: 'to_date',         label: 'To',            width: '150px', required: true, editor: 'date' },
   { key: 'reason',          label: 'Reason',        width: '260px' },

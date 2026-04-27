@@ -54,3 +54,32 @@ body {
 }
 
 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Docs typography — used inside <DocArticle> */
+.prose-doc { color: var(--color-slate-800); line-height: 1.65; font-size: 14.5px; }
+.dark .prose-doc { color: var(--color-slate-200); }
+.prose-doc h1, .prose-doc h2, .prose-doc h3 { color: var(--color-slate-900); font-weight: 600; line-height: 1.25; }
+.dark .prose-doc h1, .dark .prose-doc h2, .dark .prose-doc h3 { color: var(--color-slate-50); }
+.prose-doc h2 { font-size: 18px; margin-top: 28px; margin-bottom: 10px; }
+.prose-doc h3 { font-size: 15px; margin-top: 20px; margin-bottom: 6px; }
+.prose-doc h2:first-child, .prose-doc h3:first-child { margin-top: 0; }
+.prose-doc p  { margin: 0 0 12px; }
+.prose-doc ul, .prose-doc ol { margin: 0 0 12px; padding-left: 20px; }
+.prose-doc li { margin: 4px 0; }
+.prose-doc code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; padding: 1px 5px; border-radius: 4px; background: rgba(15, 23, 42, .06); }
+.dark .prose-doc code { background: rgba(241, 245, 249, .08); }
+.prose-doc pre { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; background: rgba(15, 23, 42, .04); border: 1px solid var(--color-slate-200); overflow-x: auto; }
+.dark .prose-doc pre { background: rgba(241, 245, 249, .04); border-color: var(--color-slate-800); }
+.prose-doc pre code { background: transparent; padding: 0; }
+.prose-doc blockquote { margin: 0 0 12px; padding: 8px 14px; border-left: 3px solid var(--color-brand-500); background: rgba(99, 102, 241, .04); border-radius: 0 6px 6px 0; }
+.prose-doc table { border-collapse: collapse; width: 100%; margin: 0 0 12px; font-size: 13px; }
+.prose-doc th, .prose-doc td { padding: 6px 10px; border: 1px solid var(--color-slate-200); text-align: left; }
+.dark .prose-doc th, .dark .prose-doc td { border-color: var(--color-slate-800); }
+.prose-doc th { background: rgba(15, 23, 42, .04); font-weight: 600; }
+.dark .prose-doc th { background: rgba(241, 245, 249, .04); }
+.prose-doc a { color: var(--color-brand-700); text-decoration: underline; text-decoration-color: rgba(99, 102, 241, .35); }
+.dark .prose-doc a { color: var(--color-brand-400); }
+.prose-doc .callout { margin: 0 0 12px; padding: 12px 14px; border-radius: 8px; border: 1px solid; }
+.prose-doc .callout-tip   { border-color: rgb(167, 243, 208); background: rgba(16, 185, 129, .06); }
+.prose-doc .callout-warn  { border-color: rgb(253, 230, 138);  background: rgba(245, 158, 11, .06); }
+.prose-doc .callout-info  { border-color: rgb(186, 230, 253);    background: rgba(14, 165, 233, .06); }

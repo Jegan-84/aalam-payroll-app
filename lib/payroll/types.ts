@@ -16,6 +16,11 @@ export type StatutoryConfig = {
   esi_employer_percent: number          // 3.25
   esi_wage_ceiling: number              // 21000 (monthly gross threshold)
   gratuity_percent: number              // 4.81
+  // CTC-structure percentages (configurable via /settings/statutory)
+  basic_percent_of_gross: number        // 50
+  hra_percent_of_basic: number          // 50
+  conv_percent_of_basic: number         // 10
+  conv_monthly_cap: number              // 800
 }
 
 export type CalcInput = {

@@ -63,7 +63,18 @@ export async function saveDraftDeclarationAction(_prev: DeclarationFormState, fo
 }
 
 export async function submitDeclarationAction(_prev: DeclarationFormState, formData: FormData) {
-  return upsertDeclaration(formData, 'submitted')
+  const res = await upsertDeclaration(formData, 'submitted')
+  if (res?.ok) {
+    const { notifyByRoles } = await import('@/lib/notifications/service')
+    await notifyByRoles(['admin', 'hr', 'payroll'], {
+      kind: 'declaration.submitted',
+      title: 'Tax declaration submitted',
+      body: 'An employee has submitted their tax declaration for review.',
+      href: '/declarations',
+      severity: 'info',
+    })
+  }
+  return res
 }
 
 export async function approveDeclarationAction(formData: FormData) {
@@ -73,6 +84,12 @@ export async function approveDeclarationAction(formData: FormData) {
   if (!id) return
 
   const admin = createAdminClient()
+  const { data: decl } = await admin
+    .from('employee_tax_declarations')
+    .select('employee_id, fy_start')
+    .eq('id', id)
+    .maybeSingle()
+
   await admin
     .from('employee_tax_declarations')
     .update({ status: 'approved', reviewed_at: new Date().toISOString(), reviewed_by: session.userId, review_notes: notes })
@@ -87,6 +104,18 @@ export async function approveDeclarationAction(formData: FormData) {
     summary: 'Approved tax declaration',
   })
 
+  if (decl) {
+    const { createNotification } = await import('@/lib/notifications/service')
+    await createNotification({
+      employeeId: decl.employee_id as string,
+      kind: 'declaration.reviewed',
+      title: 'Tax declaration approved',
+      body: 'Your tax declaration has been approved and will apply to your TDS calculation.',
+      href: '/me/declaration',
+      severity: 'success',
+    })
+  }
+
   revalidatePath('/declarations')
 }
 
@@ -97,6 +126,12 @@ export async function rejectDeclarationAction(formData: FormData) {
   if (!id) return
 
   const admin = createAdminClient()
+  const { data: decl } = await admin
+    .from('employee_tax_declarations')
+    .select('employee_id')
+    .eq('id', id)
+    .maybeSingle()
+
   await admin
     .from('employee_tax_declarations')
     .update({ status: 'rejected', reviewed_at: new Date().toISOString(), reviewed_by: session.userId, review_notes: notes })
@@ -110,6 +145,18 @@ export async function rejectDeclarationAction(formData: FormData) {
     entity_id: id,
     summary: 'Rejected tax declaration',
   })
+
+  if (decl) {
+    const { createNotification } = await import('@/lib/notifications/service')
+    await createNotification({
+      employeeId: decl.employee_id as string,
+      kind: 'declaration.reviewed',
+      title: 'Tax declaration rejected',
+      body: notes ?? 'Your declaration needs changes — please review and resubmit.',
+      href: '/me/declaration',
+      severity: 'warn',
+    })
+  }
 
   revalidatePath('/declarations')
 }

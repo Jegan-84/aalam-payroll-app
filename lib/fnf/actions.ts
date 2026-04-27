@@ -158,6 +158,17 @@ export async function initiateFnfAction(
     summary: `Initiated F&F for ${emp.employee_code} (LWD ${lastWorkingDay})${loanLines.length > 0 ? `; seeded ${loanLines.length} loan recovery line(s)` : ''}`,
   })
 
+  // Notify the employee.
+  const { createNotification } = await import('@/lib/notifications/service')
+  await createNotification({
+    employeeId,
+    kind: 'fnf.initiated',
+    title: 'F&F settlement initiated',
+    body: `HR has started your Full & Final settlement with LWD ${lastWorkingDay}. You'll see the breakdown once it's computed.`,
+    href: '/me/fnf',
+    severity: 'info',
+  })
+
   revalidatePath(`/employees/${employeeId}/fnf`)
   return { ok: true, id: data.id as string }
 }
@@ -499,6 +510,16 @@ export async function approveFnfAction(formData: FormData): Promise<{ ok?: true;
     entity_type: 'fnf_settlement',
     entity_id: id,
     summary: `Approved F&F — employee marked exited on ${lwd}`,
+  })
+
+  const { createNotification } = await import('@/lib/notifications/service')
+  await createNotification({
+    employeeId: s.employee_id as string,
+    kind: 'fnf.approved',
+    title: 'F&F settlement approved',
+    body: `Your Full & Final settlement has been approved. Download the PDF from the portal.`,
+    href: '/me/fnf',
+    severity: 'success',
   })
 
   revalidatePath(`/fnf/${id}`)

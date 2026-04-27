@@ -15,9 +15,31 @@ export default async function ReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Statutory Reports"
-        subtitle="Downloads pull from payroll runs that are at least approved. TN PT and gratuity span multiple months."
+        title="Reports"
+        subtitle="Statutory filings + management reports. Cycle-based reports pull from runs that are at least approved."
       />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {[
+          { href: '/reports/journal',  title: 'Payroll journal',    desc: 'Cycle-level CSV by component — ready for Tally / SAP / Zoho Books import.' },
+          { href: '/reports/variance', title: 'Month-over-month variance', desc: 'Diff two approved cycles — see which components moved and by how much.' },
+          { href: '/reports/mis',      title: 'Management MIS',     desc: 'Employer cost rolled up by department, location, company.' },
+        ].map((c) => (
+          <Link
+            key={c.href}
+            href={c.href}
+            className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-brand-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-brand-700"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">{c.title}</div>
+              <span className="text-slate-300 transition-colors group-hover:text-brand-600">→</span>
+            </div>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{c.desc}</p>
+          </Link>
+        ))}
+      </div>
+
+      <h2 className="pt-2 text-sm font-semibold text-slate-900 dark:text-slate-50">Statutory filings</h2>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

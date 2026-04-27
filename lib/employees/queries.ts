@@ -81,23 +81,27 @@ export async function listEmployees(filters: EmployeeListFilters = {}) {
 export const getEmployee = cache(async (id: string) => {
   await verifySession()
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('employees')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle()
-  if (error) throw new Error(error.message)
-  return data
+  const [emp, secondaryProjects] = await Promise.all([
+    supabase.from('employees').select('*').eq('id', id).maybeSingle(),
+    supabase.from('employee_secondary_projects').select('project_id').eq('employee_id', id),
+  ])
+  if (emp.error) throw new Error(emp.error.message)
+  if (!emp.data) return null
+  return {
+    ...emp.data,
+    secondary_project_ids: (secondaryProjects.data ?? []).map((r) => r.project_id as number),
+  }
 })
 
 export const getMasterOptions = cache(async () => {
   await verifySession()
   const supabase = await createClient()
 
-  const [deps, desigs, locs, managers, companies] = await Promise.all([
+  const [deps, desigs, locs, projects, managers, companies, users, existingEmployees] = await Promise.all([
     supabase.from('departments').select('id, code, name').eq('is_active', true).order('name'),
     supabase.from('designations').select('id, code, name').eq('is_active', true).order('name'),
     supabase.from('locations').select('id, code, name').eq('is_active', true).order('name'),
+    supabase.from('projects').select('id, code, name').eq('is_active', true).order('name'),
     supabase
       .from('employees')
       .select('id, employee_code, full_name_snapshot')
@@ -108,13 +112,42 @@ export const getMasterOptions = cache(async () => {
       .select('id, code, legal_name, display_name')
       .eq('is_active', true)
       .order('display_order'),
+    supabase
+      .from('users')
+      .select('id, email, full_name, is_active')
+      .eq('is_active', true)
+      .order('email'),
+    // Pre-compute which users are already linked to an employee so the UI can warn.
+    supabase.from('employees').select('employee_code, full_name_snapshot, work_email, user_id'),
   ])
+
+  type UserRow = { id: string; email: string; full_name: string | null; is_active: boolean }
+  type EmpRow = { employee_code: string; full_name_snapshot: string; work_email: string; user_id: string | null }
+
+  const linkByEmail = new Map<string, EmpRow>()
+  const linkByUserId = new Map<string, EmpRow>()
+  for (const e of (existingEmployees.data ?? []) as unknown as EmpRow[]) {
+    if (e.work_email) linkByEmail.set(e.work_email.toLowerCase(), e)
+    if (e.user_id) linkByUserId.set(e.user_id, e)
+  }
+
+  const userOptions = ((users.data ?? []) as unknown as UserRow[]).map((u) => {
+    const linked = linkByUserId.get(u.id) ?? linkByEmail.get(u.email.toLowerCase())
+    return {
+      id: u.id,
+      email: u.email,
+      full_name: u.full_name,
+      linked_to: linked ? { employee_code: linked.employee_code, full_name: linked.full_name_snapshot } : null,
+    }
+  })
 
   return {
     departments:  deps.data ?? [],
     designations: desigs.data ?? [],
     locations:    locs.data ?? [],
+    projects:     projects.data ?? [],
     managers:     managers.data ?? [],
     companies:    companies.data ?? [],
+    users:        userOptions,
   }
 })

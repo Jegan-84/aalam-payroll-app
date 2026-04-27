@@ -6,7 +6,7 @@ import { verifySession } from '@/lib/auth/dal'
 
 export type EmployeeBulkRow = {
   employee_code: string
-  work_email: string
+  work_email?: string
   first_name: string
   middle_name?: string
   last_name: string
@@ -78,11 +78,11 @@ export async function bulkCreateEmployeesAction(
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i]
-    if (!r.employee_code || !r.work_email || !r.first_name || !r.last_name || !r.date_of_joining) {
+    if (!r.employee_code || !r.first_name || !r.last_name || !r.date_of_joining) {
       result.skipped.push({
         row: i + 1,
         code: r.employee_code || '(no code)',
-        reason: 'Missing required field (code/email/first/last/DoJ).',
+        reason: 'Missing required field (code/first/last/DoJ).',
       })
       continue
     }
@@ -107,7 +107,7 @@ export async function bulkCreateEmployeesAction(
 
     const payload: Record<string, unknown> = {
       employee_code: r.employee_code.trim(),
-      work_email: r.work_email.trim().toLowerCase(),
+      work_email: r.work_email && r.work_email.trim() !== '' ? r.work_email.trim().toLowerCase() : null,
       first_name: r.first_name.trim(),
       middle_name: emptyToNull(r.middle_name),
       last_name: r.last_name.trim(),

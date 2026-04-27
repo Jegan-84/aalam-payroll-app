@@ -31,7 +31,10 @@ export const EmployeeSchema = z
   .object({
     // identity
     employee_code: z.string().trim().min(1, 'Employee code is required.'),
-    work_email:    z.string().trim().toLowerCase().email('Valid work email required.'),
+    work_email:    z.preprocess(
+      EMPTY_TO_UNDEF,
+      z.string().trim().toLowerCase().email('Enter a valid email or leave blank.').optional(),
+    ),
 
     // personal
     first_name: z.string().trim().min(1, 'First name is required.'),
@@ -81,8 +84,20 @@ export const EmployeeSchema = z
     department_id:  z.preprocess(EMPTY_TO_UNDEF, z.coerce.number().int().positive().optional()),
     designation_id: z.preprocess(EMPTY_TO_UNDEF, z.coerce.number().int().positive().optional()),
     location_id:    z.preprocess(EMPTY_TO_UNDEF, z.coerce.number().int().positive().optional()),
+    primary_project_id: z.preprocess(EMPTY_TO_UNDEF, z.coerce.number().int().positive().optional()),
+    secondary_project_ids: z.preprocess(
+      (v) => {
+        if (v == null || v === '') return []
+        if (Array.isArray(v)) return v.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+        if (typeof v === 'string') {
+          return v.split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0)
+        }
+        return []
+      },
+      z.array(z.number().int().positive()).default([]),
+    ),
     reports_to:     z.preprocess(EMPTY_TO_UNDEF, z.string().uuid().optional()),
-    employment_type: z.enum(['full_time', 'contract', 'intern', 'consultant']),
+    employment_type: z.enum(['full_time', 'probation', 'contract', 'intern', 'consultant']),
     date_of_joining: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Joining date is required (YYYY-MM-DD).'),
     date_of_confirmation: optDate(),
     probation_end_date: optDate(),

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifySession } from '@/lib/auth/dal'
 import { countLeaveDays } from '@/lib/leave/engine'
-import { getLeaveContext, getHolidaysInRange } from '@/lib/leave/queries'
+import { getLeaveContext, getHolidaysForEmployeeInRange } from '@/lib/leave/queries'
 
 export type LeaveBulkRow = {
   employee_code: string
@@ -64,7 +64,7 @@ export async function bulkCreateLeaveApplicationsAction(
       continue
     }
 
-    const holidays = await getHolidaysInRange(r.from_date, r.to_date)
+    const holidays = await getHolidaysForEmployeeInRange(empId, r.from_date, r.to_date)
     const daysCount = countLeaveDays(r.from_date, r.to_date, { weeklyOffDays, holidayDates: holidays })
     if (daysCount <= 0) {
       result.skipped.push({ row: i + 1, employee_code: r.employee_code, reason: 'Range has no working days.' })

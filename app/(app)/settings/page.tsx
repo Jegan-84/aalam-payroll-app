@@ -7,8 +7,13 @@ const cards = [
   { href: '/settings/companies',   title: 'Companies',        desc: 'Legal / brand entities. Each employee is tagged to a company, which renders on their payslip dynamically.' },
   { href: '/settings/departments', title: 'Departments',      desc: 'Engineering, Operations, Finance, etc. — used in employee profiles and reports.' },
   { href: '/settings/designations',title: 'Designations',     desc: 'Job titles / grades assigned to employees.' },
+  { href: '/settings/projects',    title: 'Projects',          desc: 'Client projects employees are tagged to. Drives per-project holiday calendars.' },
+  { href: '/settings/holidays',    title: 'Holiday calendar',  desc: 'Public / restricted holidays, optionally scoped to a project or location.' },
   { href: '/settings/tax',         title: 'Income-tax slabs', desc: 'Manage FY-wise slabs, standard deduction, rebate, surcharge, cess for NEW and OLD regimes.' },
   { href: '/settings/pt',          title: 'Professional Tax', desc: 'Half-yearly PT slabs per state. Roll a new period when the state revises rates.' },
+  { href: '/settings/components',  title: 'Custom pay components', desc: 'HR-defined earnings / deductions with fixed, %, or formula calculation. Added on top of statutory components.' },
+  { href: '/settings/statutory',   title: 'Statutory configuration', desc: 'BASIC / HRA / Conveyance rates, PF, ESI, and Gratuity percentages. Drives every new payslip.' },
+  { href: '/settings/leave-policies', title: 'Leave policies',  desc: 'Per-type accrual, carry-forward, and balance caps. Run monthly accrual from here.' },
   { href: '/users',                title: 'Users & roles',    desc: 'Invite users, assign admin/HR/payroll/employee roles, reset passwords, deactivate.' },
 ]
 

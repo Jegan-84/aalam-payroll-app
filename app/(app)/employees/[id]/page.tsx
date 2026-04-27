@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { getEmployee, getMasterOptions } from '@/lib/employees/queries'
 import { updateEmployeeAction } from '@/lib/employees/actions'
 import { EmployeeForm } from '../_components/employee-form'
+import { ConvertTypeButton } from '../_components/convert-type-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { ButtonLink } from '@/components/ui/button'
 
@@ -23,11 +24,16 @@ export default async function EmployeeEditPage({ params }: { params: PP }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={emp.full_name_snapshot}
+        title={emp.full_name_snapshot as string}
         back={{ href: '/employees', label: 'Employees' }}
-        subtitle={`Code: ${emp.employee_code}`}
+        subtitle={`Code: ${emp.employee_code} · ${emp.employment_type}`}
         actions={
           <>
+            <ConvertTypeButton
+              employeeId={id}
+              currentType={emp.employment_type as string}
+              employeeLabel={`${emp.full_name_snapshot} (${emp.employee_code})` as string}
+            />
             <ButtonLink href={`/employees/${id}/salary`} variant="outline" size="md">Salary structure →</ButtonLink>
             <ButtonLink href={`/employees/${id}/declaration`} variant="outline" size="md">Tax declaration →</ButtonLink>
             <ButtonLink href={`/employees/${id}/components`} variant="outline" size="md">Recurring components →</ButtonLink>
@@ -40,7 +46,7 @@ export default async function EmployeeEditPage({ params }: { params: PP }) {
         mode="edit"
         action={boundAction}
         masters={masters}
-        defaults={emp as Record<string, string | number | boolean | null>}
+        defaults={emp as Record<string, string | number | boolean | null | readonly (string | number)[]>}
         cancelHref="/employees"
       />
     </div>

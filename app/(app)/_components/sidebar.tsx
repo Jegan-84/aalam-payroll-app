@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import * as React from 'react'
 import { signOutAction } from '@/lib/auth/actions'
+import { canAccess } from '@/lib/auth/route-roles'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; sub?: boolean }
 type NavGroup = { heading: string; items: NavItem[] }
@@ -25,8 +26,10 @@ const GROUPS: NavGroup[] = [
       { href: '/attendance',        label: 'Attendance',        icon: <IconCalendar /> },
       { href: '/leave',             label: 'Leave',             icon: <IconSun /> },
       { href: '/leave/balances',    label: 'Leave Balances',    icon: <IconGauge />, sub: true },
+      { href: '/comp-off',          label: 'Comp Off',           icon: <IconSun />, sub: true },
       { href: '/payroll',           label: 'Payroll Runs',      icon: <IconPlay /> },
       { href: '/loans',             label: 'Loans',             icon: <IconBank />, sub: true },
+      { href: '/reimbursements',    label: 'Reimbursements',    icon: <IconReceipt />, sub: true },
       { href: '/fnf',               label: 'F&F Settlements',   icon: <IconExit />, sub: true },
     ],
   },
@@ -43,6 +46,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: '/users',    label: 'Users',    icon: <IconShield /> },
       { href: '/settings', label: 'Settings', icon: <IconGear /> },
+      { href: '/docs',     label: 'Help',     icon: <IconHelp /> },
     ],
   },
 ]
@@ -65,8 +69,16 @@ function getSidebarServerSnapshot() {
   return false
 }
 
-export function Sidebar({ email, fullName }: { email: string; fullName: string | null }) {
+export function Sidebar({ email, fullName, roles }: { email: string; fullName: string | null; roles: string[] }) {
   const pathname = usePathname()
+
+  // Filter nav items by the user's roles so HR never sees Payroll-only items and vice versa.
+  const visibleGroups: NavGroup[] = GROUPS
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => canAccess(i.href, roles)),
+    }))
+    .filter((g) => g.items.length > 0)
   const isCollapsed = React.useSyncExternalStore(subscribeSidebar, getSidebarSnapshot, getSidebarServerSnapshot)
 
   const toggle = () => {
@@ -100,7 +112,7 @@ export function Sidebar({ email, fullName }: { email: string; fullName: string |
 
       {/* Nav */}
       <nav className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-2 py-3' : 'px-3 py-4'}`}>
-        {GROUPS.map((g) => (
+        {visibleGroups.map((g) => (
           <div key={g.heading} className="mb-4 last:mb-0">
             {!isCollapsed && (
               <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -229,3 +241,4 @@ function IconExit()         { return <svg {...iconProps}><path d="M9 3h8a2 2 0 0
 function IconBank()         { return <svg {...iconProps}><path d="M3 10 12 4l9 6"/><path d="M5 10v8"/><path d="M19 10v8"/><path d="M9 14v4"/><path d="M15 14v4"/><path d="M3 20h18"/></svg> }
 function IconChevronLeft()  { return <svg {...iconProps}><path d="m15 18-6-6 6-6"/></svg> }
 function IconChevronRight() { return <svg {...iconProps}><path d="m9 18 6-6-6-6"/></svg> }
+function IconHelp()         { return <svg {...iconProps}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> }

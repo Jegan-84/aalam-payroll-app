@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
-import { useForm, type SubmitHandler, type FieldErrors, type Path } from 'react-hook-form'
+import { useForm, useWatch, type SubmitHandler, type FieldErrors, type Path, type Control } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -16,16 +16,24 @@ import {
 type MasterOption = { id: number; code: string; name: string }
 type ManagerOption = { id: string; employee_code: string; full_name_snapshot: string }
 type CompanyOption = { id: string; code: string; legal_name: string; display_name: string }
+type UserOption = {
+  id: string
+  email: string
+  full_name: string | null
+  linked_to: { employee_code: string; full_name: string } | null
+}
 
 type Masters = {
   departments: MasterOption[]
   designations: MasterOption[]
   locations: MasterOption[]
+  projects: MasterOption[]
   managers: ManagerOption[]
   companies: CompanyOption[]
+  users: UserOption[]
 }
 
-type Defaults = Partial<Record<string, string | number | boolean | null>>
+type Defaults = Partial<Record<string, string | number | boolean | null | readonly (string | number)[]>>
 
 export type EmployeeFormProps = {
   mode: 'create' | 'edit'
@@ -92,6 +100,15 @@ function toDefaultValues(d: Defaults): EmployeeFormValues {
     department_id:  d.department_id  == null || d.department_id  === '' ? undefined : Number(d.department_id),
     designation_id: d.designation_id == null || d.designation_id === '' ? undefined : Number(d.designation_id),
     location_id:    d.location_id    == null || d.location_id    === '' ? undefined : Number(d.location_id),
+    primary_project_id: d.primary_project_id == null || d.primary_project_id === '' ? undefined : Number(d.primary_project_id),
+    secondary_project_ids: (() => {
+      const v = d.secondary_project_ids
+      if (Array.isArray(v)) return v.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+      if (typeof v === 'string' && v.trim() !== '') {
+        return v.split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0)
+      }
+      return []
+    })(),
     reports_to:     d.reports_to == null ? undefined : String(d.reports_to),
     employment_type: (s('employment_type') || 'full_time') as EmployeeFormValues['employment_type'],
     date_of_joining: s('date_of_joining'),
@@ -127,6 +144,12 @@ function valuesToFormData(values: EmployeeInput): FormData {
       if (v) fd.append(k, 'on')
       continue
     }
+    if (Array.isArray(v)) {
+      // Multi-value fields (e.g. secondary_project_ids) — serialise as CSV
+      // so parseFormData() on the server gets a single predictable string.
+      if (v.length > 0) fd.append(k, v.join(','))
+      continue
+    }
     fd.append(k, String(v))
   }
   return fd
@@ -142,6 +165,8 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
     register,
     handleSubmit,
     setError,
+    control,
+    setValue,
     formState: { errors },
   } = useForm<EmployeeFormValues, unknown, EmployeeInput>({
     resolver: zodResolver(EmployeeSchema),
@@ -208,8 +233,35 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
             <Field label="Employee code" error={err('employee_code')} required>
               <Input {...register('employee_code')} placeholder="AAL001" />
             </Field>
-            <Field label="Work email" error={err('work_email')} required>
-              <Input type="email" {...register('work_email')} />
+            <Field
+              label={
+                <span className="inline-flex items-center gap-1.5">
+                  Work email
+                  <span
+                    className="inline-flex items-center gap-0.5 rounded-full border border-brand-300 bg-brand-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-brand-700 dark:border-brand-800 dark:bg-brand-950/40 dark:text-brand-300"
+                    title="This field links the employee to a login user for the Employee Self-Service portal."
+                  >
+                    🔗 portal login
+                  </span>
+                </span>
+              }
+              error={err('work_email')}
+              hint="Pick the user account the employee will log in with. Leave blank if this employee won't use the portal (HR will manage their leave / attendance manually). You can add it later and invite a user from /users."
+            >
+              <Select {...register('work_email')}>
+                <option value="">— No portal access —</option>
+                {masters.users.map((u) => {
+                  const mineCode = mode === 'edit' ? (defaults.employee_code as string | undefined) : undefined
+                  const takenByOther = u.linked_to && u.linked_to.employee_code !== mineCode
+                  return (
+                    <option key={u.id} value={u.email} disabled={takenByOther ?? false}>
+                      {u.email}
+                      {u.full_name ? ` · ${u.full_name}` : ''}
+                      {takenByOther ? ` — already linked to ${u.linked_to!.employee_code}` : ''}
+                    </option>
+                  )
+                })}
+              </Select>
             </Field>
           </Grid>
         </Section>
@@ -349,6 +401,21 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
                 ))}
               </Select>
             </Field>
+            <Field label="Primary project" error={err('primary_project_id')}>
+              <Select {...register('primary_project_id')}>
+                <option value="">—</option>
+                {masters.projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Secondary projects" error={err('secondary_project_ids')}>
+              <SecondaryProjectsController
+                control={control}
+                options={masters.projects}
+                onChange={(next) => setValue('secondary_project_ids', next, { shouldDirty: true })}
+              />
+            </Field>
             <Field label="Reports to" error={err('reports_to')}>
               <Select {...register('reports_to')}>
                 <option value="">—</option>
@@ -361,7 +428,8 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
             </Field>
             <Field label="Employment type" error={err('employment_type')} required>
               <Select {...register('employment_type')}>
-                <option value="full_time">Full-time</option>
+                <option value="full_time">Full-time (permanent)</option>
+                <option value="probation">Probation</option>
                 <option value="contract">Contract</option>
                 <option value="intern">Intern</option>
                 <option value="consultant">Consultant</option>
@@ -428,26 +496,18 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
               </Select>
             </Field>
             <Field label="Lunch applicable" error={err('lunch_applicable')}>
-              <label className="flex h-9 items-center gap-2 text-sm text-slate-800 dark:text-slate-200">
-                <input type="checkbox" {...register('lunch_applicable')} />
-                Deduct ₹250/month (the employee takes the company lunch)
+              <label className="flex min-h-9 items-start gap-2 py-1.5 text-sm leading-5 text-slate-800 dark:text-slate-200">
+                <input type="checkbox" className="mt-0.5" {...register('lunch_applicable')} />
+                <span>Deduct ₹250/month (the employee takes the company lunch)</span>
               </label>
             </Field>
             <Field label="Shift allowance applicable" error={err('shift_applicable')}>
-              <label className="flex h-9 items-center gap-2 text-sm text-slate-800 dark:text-slate-200">
-                <input type="checkbox" {...register('shift_applicable')} />
-                Credit a monthly shift allowance (prorated by paid days)
+              <label className="flex min-h-9 items-start gap-2 py-1.5 text-sm leading-5 text-slate-800 dark:text-slate-200">
+                <input type="checkbox" className="mt-0.5" {...register('shift_applicable')} />
+                <span>Credit a monthly shift allowance (prorated by paid days)</span>
               </label>
             </Field>
-            <Field label="Shift allowance (₹/month)" error={err('shift_allowance_monthly')}>
-              <input
-                type="number"
-                min={0}
-                step="1"
-                className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-950"
-                {...register('shift_allowance_monthly', { valueAsNumber: true })}
-              />
-            </Field>
+            <ShiftAllowanceAmount control={control} register={register} error={err('shift_allowance_monthly')} />
           </Grid>
         </Section>
 
@@ -490,14 +550,15 @@ function Grid({ children }: { children: React.ReactNode }) {
 }
 
 function Field({
-  label, required, error, children,
-}: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
+  label, required, error, hint, children,
+}: { label: React.ReactNode; required?: boolean; error?: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
       <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
         {label}{required && <span className="text-red-600"> *</span>}
       </label>
       {children}
+      {hint && <p className="text-[11px] text-slate-500 dark:text-slate-400">{hint}</p>}
       {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   )
@@ -523,4 +584,77 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 
 function SubHeading({ children }: { children: React.ReactNode }) {
   return <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{children}</h3>
+}
+
+function ShiftAllowanceAmount({
+  control, register, error,
+}: {
+  control: Control<EmployeeFormValues, unknown, EmployeeInput>
+  register: ReturnType<typeof useForm<EmployeeFormValues, unknown, EmployeeInput>>['register']
+  error?: string
+}) {
+  const enabled = Boolean(useWatch({ control, name: 'shift_applicable' }))
+  if (!enabled) return null
+  return (
+    <Field label="Shift allowance (₹/month)" error={error}>
+      <input
+        type="number"
+        min={0}
+        step="1"
+        className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-950"
+        {...register('shift_allowance_monthly', { valueAsNumber: true })}
+      />
+    </Field>
+  )
+}
+
+function SecondaryProjectsController({
+  control, options, onChange,
+}: {
+  control: Control<EmployeeFormValues, unknown, EmployeeInput>
+  options: MasterOption[]
+  onChange: (next: number[]) => void
+}) {
+  const value = (useWatch({ control, name: 'secondary_project_ids' }) as number[] | undefined) ?? []
+  return <SecondaryProjectsPicker value={value} options={options} onChange={onChange} />
+}
+
+function SecondaryProjectsPicker({
+  value, options, onChange,
+}: {
+  value: number[]
+  options: MasterOption[]
+  onChange: (next: number[]) => void
+}) {
+  const selected = new Set(value)
+  const toggle = (id: number) => {
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    onChange(Array.from(next).sort((a, b) => a - b))
+  }
+  if (options.length === 0) {
+    return <p className="text-[11px] text-slate-500">Add projects in Settings → Projects first.</p>
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5 rounded-md border border-slate-300 bg-white p-2 dark:border-slate-700 dark:bg-slate-950">
+      {options.map((p) => {
+        const on = selected.has(p.id)
+        return (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => toggle(p.id)}
+            className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
+              on
+                ? 'border-brand-600 bg-brand-600 text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+            }`}
+          >
+            {p.code}
+          </button>
+        )
+      })}
+    </div>
+  )
 }

@@ -2,9 +2,11 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { verifySession } from '@/lib/auth/dal'
 import { approveDeclarationAction, rejectDeclarationAction } from '@/lib/tax/actions'
+import { countPendingPoi } from '@/lib/poi/queries'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ButtonLink } from '@/components/ui/button'
 
 export const metadata = { title: 'Declarations (HR review)' }
 
@@ -21,6 +23,8 @@ export default async function DeclarationsListPage({ searchParams }: { searchPar
   await verifySession()
   const sp = await searchParams
   const status = sp.status && ['draft', 'submitted', 'approved', 'rejected'].includes(sp.status) ? sp.status : 'submitted'
+
+  const pendingPoiCount = await countPendingPoi()
 
   const supabase = await createClient()
   const { data } = await supabase
@@ -46,6 +50,11 @@ export default async function DeclarationsListPage({ searchParams }: { searchPar
       <PageHeader
         title="Tax Declarations"
         subtitle="Only approved declarations are consumed by the payroll engine for OLD regime employees."
+        actions={
+          <ButtonLink href="/declarations/poi" variant="outline">
+            POI queue{pendingPoiCount > 0 ? ` · ${pendingPoiCount}` : ''}
+          </ButtonLink>
+        }
       />
 
       <div className="flex flex-wrap gap-2 text-sm">

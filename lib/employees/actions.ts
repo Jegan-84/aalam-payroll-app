@@ -14,8 +14,14 @@ function parseFormData(formData: FormData): Record<string, unknown> {
 }
 
 function inputToRow(input: EmployeeInput, session: { userId: string }, isCreate: boolean) {
+  // secondary_project_ids is managed via the join table, not a column on employees.
+  const rest: Partial<EmployeeInput> = { ...input }
+  delete rest.secondary_project_ids
   const row: Record<string, unknown> = {
-    ...input,
+    ...rest,
+    // Coerce empty work_email to null so the unique constraint allows multiple
+    // employees without a portal email.
+    work_email: input.work_email && input.work_email.trim() !== '' ? input.work_email : null,
     updated_by: session.userId,
   }
   if (isCreate) row.created_by = session.userId
@@ -30,6 +36,32 @@ function inputToRow(input: EmployeeInput, session: { userId: string }, isCreate:
   }
 
   return row
+}
+
+async function syncSecondaryProjects(
+  admin: ReturnType<typeof createAdminClient>,
+  employeeId: string,
+  projectIds: number[],
+) {
+  await admin.from('employee_secondary_projects').delete().eq('employee_id', employeeId)
+  if (projectIds.length === 0) return
+  const rows = projectIds.map((pid) => ({ employee_id: employeeId, project_id: pid }))
+  const { error } = await admin.from('employee_secondary_projects').insert(rows)
+  if (error) throw new Error(error.message)
+}
+
+/** Resolve the user.id for a given work_email (case-insensitive). Null if no match. */
+async function resolveUserIdFromEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  workEmail: string | null | undefined,
+): Promise<string | null> {
+  if (!workEmail) return null
+  const { data } = await admin
+    .from('users')
+    .select('id')
+    .ilike('email', workEmail)
+    .maybeSingle()
+  return (data?.id as string | null) ?? null
 }
 
 async function writeEmploymentHistory(
@@ -88,6 +120,8 @@ export async function createEmployeeAction(
 
   const admin = createAdminClient()
   const row = inputToRow(parsed.data, session, true)
+  // Link employee → user by resolving the chosen work_email to a users.id.
+  row.user_id = await resolveUserIdFromEmail(admin, parsed.data.work_email)
 
   const { data, error } = await admin.from('employees').insert(row).select('id').single()
   if (error) {
@@ -96,6 +130,7 @@ export async function createEmployeeAction(
 
   try {
     await writeEmploymentHistory(admin, data.id, parsed.data, session.userId, 'new_hire')
+    await syncSecondaryProjects(admin, data.id, parsed.data.secondary_project_ids)
     await writeAudit(admin, session, {
       action: 'employee.create',
       entity_id: data.id,
@@ -127,6 +162,7 @@ export async function updateEmployeeAction(
   if (!before) return { errors: { _form: ['Employee not found.'] } }
 
   const row = inputToRow(parsed.data, session, false)
+  row.user_id = await resolveUserIdFromEmail(admin, parsed.data.work_email)
   const { error } = await admin.from('employees').update(row).eq('id', id)
   if (error) return { errors: { _form: [error.message] } }
 
@@ -143,6 +179,12 @@ export async function updateEmployeeAction(
     } catch (err) {
       return { errors: { _form: [(err as Error).message] } }
     }
+  }
+
+  try {
+    await syncSecondaryProjects(admin, id, parsed.data.secondary_project_ids)
+  } catch (err) {
+    return { errors: { _form: [(err as Error).message] } }
   }
 
   await writeAudit(admin, session, {

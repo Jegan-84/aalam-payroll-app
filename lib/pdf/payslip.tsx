@@ -5,7 +5,7 @@ import { rupeesInWords } from '@/lib/pdf/number-to-words'
 export type PayslipComponent = {
   code: string
   name: string
-  kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement' | 'variable'
+  kind: 'earning' | 'deduction' | 'employer_retiral' | 'reimbursement' | 'variable' | 'perquisite'
   amount: number
   display_order: number
 }
@@ -308,6 +308,7 @@ export function PayslipDocument({ data }: { data: PayslipData }) {
   const comps = [...components].sort((a, b) => a.display_order - b.display_order)
   const earnings = comps.filter((c) => c.kind === 'earning' && c.amount !== 0)
   const deductions = comps.filter((c) => c.kind === 'deduction' && c.amount !== 0)
+  const perquisites = comps.filter((c) => c.kind === 'perquisite' && c.amount !== 0)
 
   const rows = Math.max(earnings.length, deductions.length, 5)
   const paddedRows: Array<{ left: { name: string; amount: number } | null; right: { name: string; amount: number } | null }> = []
@@ -400,8 +401,26 @@ export function PayslipDocument({ data }: { data: PayslipData }) {
 
         <Text style={styles.inWords}>In Words: ({rupeesInWords(item.net_pay)})</Text>
 
+        {perquisites.length > 0 && (
+          <View style={[styles.mainTable, { marginTop: 10 }]}>
+            <View style={styles.bandRow}>
+              <Text style={[styles.bandHalf, styles.bandHalfDivider]}>NOTIONAL PERQUISITES (TAXABLE, NOT PAID)</Text>
+              <Text style={styles.bandHalf}>AMOUNT</Text>
+            </View>
+            {perquisites.map((p) => (
+              <View key={p.code} style={styles.dataRow}>
+                <Text style={styles.colComp}>{p.name}</Text>
+                <Text style={styles.colAmt}>{fmt(p.amount)}</Text>
+                <Text style={styles.colComp}>{' '}</Text>
+                <Text style={styles.colAmtLast}>{' '}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <Text style={styles.footerNote}>
           This is a system generated payslip hence signature is not required.
+          {perquisites.length > 0 ? ' Perquisite values (s.17(2)(viii)) are included in taxable salary for TDS; they are not part of your net pay.' : ''}
         </Text>
       </Page>
     </Document>
