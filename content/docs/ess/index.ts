@@ -7,6 +7,7 @@ import { meta as compOffMeta,        default as CompOff }        from './comp-of
 import { meta as holidaysMeta,       default as Holidays }       from './holidays'
 import { meta as payslipsMeta,       default as Payslips }       from './payslips'
 import { meta as taxDeclMeta,        default as TaxDecl }        from './tax-declaration'
+import { meta as priorEarningsMeta,  default as PriorEarnings }  from './prior-earnings'
 import { meta as reimbMeta,          default as Reimb }          from './reimbursements'
 
 export type DocEntry = { meta: DocMeta; Component: ComponentType }
@@ -18,8 +19,9 @@ export const ESS_DOCS: DocEntry[] = [
   { meta: compOffMeta,   Component: CompOff   },
   { meta: holidaysMeta,  Component: Holidays  },
   { meta: payslipsMeta,  Component: Payslips  },
-  { meta: taxDeclMeta,   Component: TaxDecl   },
-  { meta: reimbMeta,     Component: Reimb     },
+  { meta: taxDeclMeta,        Component: TaxDecl       },
+  { meta: priorEarningsMeta,  Component: PriorEarnings },
+  { meta: reimbMeta,          Component: Reimb         },
 ]
 
 export const ESS_DOCS_BY_SLUG: Record<string, DocEntry> = Object.fromEntries(

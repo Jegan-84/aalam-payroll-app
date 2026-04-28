@@ -24,9 +24,11 @@ const GROUPS: NavGroup[] = [
       { href: '/salary',            label: 'Salary Structures', icon: <IconCoins /> },
       { href: '/salary/templates',  label: 'Salary Templates',  icon: <IconLayers />, sub: true },
       { href: '/attendance',        label: 'Attendance',        icon: <IconCalendar /> },
+      { href: '/attendance/punches', label: 'Biometric Punches', icon: <IconCalendar />, sub: true },
       { href: '/leave',             label: 'Leave',             icon: <IconSun /> },
       { href: '/leave/balances',    label: 'Leave Balances',    icon: <IconGauge />, sub: true },
       { href: '/comp-off',          label: 'Comp Off',           icon: <IconSun />, sub: true },
+      { href: '/timesheet/reports', label: 'Timesheet Reports',  icon: <IconChartBar />, sub: true },
       { href: '/payroll',           label: 'Payroll Runs',      icon: <IconPlay /> },
       { href: '/loans',             label: 'Loans',             icon: <IconBank />, sub: true },
       { href: '/reimbursements',    label: 'Reimbursements',    icon: <IconReceipt />, sub: true },
@@ -242,3 +244,4 @@ function IconBank()         { return <svg {...iconProps}><path d="M3 10 12 4l9 6
 function IconChevronLeft()  { return <svg {...iconProps}><path d="m15 18-6-6 6-6"/></svg> }
 function IconChevronRight() { return <svg {...iconProps}><path d="m9 18 6-6-6-6"/></svg> }
 function IconHelp()         { return <svg {...iconProps}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> }
+function IconChartBar()     { return <svg {...iconProps}><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg> }

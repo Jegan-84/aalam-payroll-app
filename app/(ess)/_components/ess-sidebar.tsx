@@ -8,19 +8,29 @@ import { signOutAction } from '@/lib/auth/actions'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode }
 
-const NAV: NavItem[] = [
-  { href: '/me',                label: 'Overview',         icon: <IconHome /> },
-  { href: '/me/payslips',       label: 'Payslips',         icon: <IconReceipt /> },
-  { href: '/me/leave',          label: 'Leave',            icon: <IconSun /> },
-  { href: '/me/comp-off',       label: 'Comp Off',         icon: <IconSun /> },
-  { href: '/me/holidays',       label: 'Holidays',         icon: <IconSun /> },
-  { href: '/me/declaration',    label: 'Tax Declaration',  icon: <IconDoc /> },
-  { href: '/me/reimbursements', label: 'Reimbursements',   icon: <IconWallet /> },
-  { href: '/me/loans',          label: 'Loans',            icon: <IconBank /> },
-  { href: '/me/fnf',            label: 'F&F',              icon: <IconExit /> },
-  { href: '/me/profile',        label: 'Profile',          icon: <IconUser /> },
-  { href: '/me/docs',           label: 'Help',             icon: <IconHelp /> },
-]
+function buildNav({ showApprovals }: { showApprovals?: boolean }): NavItem[] {
+  const out: NavItem[] = [
+    { href: '/me',                label: 'Overview',         icon: <IconHome /> },
+    { href: '/me/attendance',     label: 'Attendance',       icon: <IconClock /> },
+    { href: '/me/timesheet',      label: 'Timesheet',        icon: <IconClock /> },
+  ]
+  if (showApprovals) {
+    out.push({ href: '/me/timesheet/approvals', label: 'Team timesheets', icon: <IconCheckSquare /> })
+  }
+  out.push(
+    { href: '/me/payslips',       label: 'Payslips',         icon: <IconReceipt /> },
+    { href: '/me/leave',          label: 'Leave',            icon: <IconSun /> },
+    { href: '/me/comp-off',       label: 'Comp Off',         icon: <IconSun /> },
+    { href: '/me/holidays',       label: 'Holidays',         icon: <IconSun /> },
+    { href: '/me/declaration',    label: 'Tax Declaration',  icon: <IconDoc /> },
+    { href: '/me/reimbursements', label: 'Reimbursements',   icon: <IconWallet /> },
+    { href: '/me/loans',          label: 'Loans',            icon: <IconBank /> },
+    { href: '/me/fnf',            label: 'F&F',              icon: <IconExit /> },
+    { href: '/me/profile',        label: 'Profile',          icon: <IconUser /> },
+    { href: '/me/docs',           label: 'Help',             icon: <IconHelp /> },
+  )
+  return out
+}
 
 const STORAGE_KEY = 'payflow.ess_sidebar_collapsed'
 const SIDEBAR_EVENT = 'payflow:ess-sidebar-toggle'
@@ -40,9 +50,12 @@ function getServerSnapshot() {
   return false
 }
 
-export function EssSidebar({ email, fullName }: { email: string; fullName: string | null }) {
+export function EssSidebar({
+  email, fullName, showApprovals = false,
+}: { email: string; fullName: string | null; showApprovals?: boolean }) {
   const pathname = usePathname()
   const isCollapsed = React.useSyncExternalStore(subscribeSidebar, getSnapshot, getServerSnapshot)
+  const NAV = buildNav({ showApprovals })
 
   const toggle = () => {
     const next = !isCollapsed
@@ -179,3 +192,5 @@ function IconLogOut()       { return <svg {...iconProps}><path d="M15 3h4a2 2 0 
 function IconHelp()         { return <svg {...iconProps}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> }
 function IconChevronLeft()  { return <svg {...iconProps} width={14} height={14}><path d="m15 18-6-6 6-6"/></svg> }
 function IconChevronRight() { return <svg {...iconProps} width={14} height={14}><path d="m9 18 6-6-6-6"/></svg> }
+function IconClock()        { return <svg {...iconProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> }
+function IconCheckSquare()  { return <svg {...iconProps}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m8 12 3 3 5-7"/></svg> }

@@ -2,9 +2,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getEmployee } from '@/lib/employees/queries'
 import { getDeclaration } from '@/lib/tax/queries'
+import { getPriorEarnings } from '@/lib/tax/prior-earnings'
 import { getFyContext } from '@/lib/leave/queries'
 import { createClient } from '@/lib/supabase/server'
 import { DeclarationForm } from './_components/declaration-form'
+import { PriorEarningsHrPanel } from './_components/prior-earnings-hr-panel'
+import { PriorEarningsForm } from '@/app/(ess)/me/declaration/_components/prior-earnings-form'
 import { resolveFy } from '@/lib/leave/engine'
 
 export const metadata = { title: 'Tax declaration' }
@@ -21,7 +24,7 @@ export default async function DeclarationPage({ params, searchParams }: { params
 
   const fy = sp.fy && /^\d{4}-\d{2}-\d{2}$/.test(sp.fy) ? resolveFy(new Date(sp.fy + 'T00:00:00Z'), 4) : await getFyContext()
 
-  const [declaration, activeStructure] = await Promise.all([
+  const [declaration, activeStructure, prior] = await Promise.all([
     getDeclaration(id, fy.fyStart),
     (async () => {
       const supabase = await createClient()
@@ -34,6 +37,7 @@ export default async function DeclarationPage({ params, searchParams }: { params
         .maybeSingle()
       return data
     })(),
+    getPriorEarnings(id, fy.fyStart),
   ])
 
   const annualGross = Number(activeStructure?.annual_gross ?? 0)
@@ -68,6 +72,21 @@ export default async function DeclarationPage({ params, searchParams }: { params
         regime={regime}
         defaults={declaration ?? undefined}
         locked={declaration?.status === 'approved'}
+      />
+
+      <PriorEarningsHrPanel
+        employeeId={id}
+        fyStart={fy.fyStart}
+        fyLabel={fy.label}
+        prior={prior ?? null}
+      />
+
+      <PriorEarningsForm
+        employeeId={id}
+        fyStart={fy.fyStart}
+        fyLabel={fy.label}
+        defaults={prior ?? undefined}
+        asAdmin
       />
     </div>
   )

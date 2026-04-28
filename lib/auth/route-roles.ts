@@ -38,6 +38,7 @@ export const ROUTE_ROLES: Record<string, AdminRole[]> = {
   '/settings':       ['admin'],
   '/comp-off':       ['admin', 'hr'],
   '/docs':           ['admin', 'hr', 'payroll'],
+  '/timesheet':      ['admin', 'hr', 'payroll'],
 }
 
 /** Return true if the given path is accessible to ANY of the roles. */

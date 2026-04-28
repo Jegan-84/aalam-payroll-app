@@ -95,6 +95,7 @@ function toDefaultValues(d: Defaults): EmployeeFormValues {
     uan_number: s('uan_number'),
     esi_number: s('esi_number'),
     passport_number: s('passport_number'),
+    biometric_id: s('biometric_id'),
 
     company_id:     d.company_id == null ? undefined : String(d.company_id),
     department_id:  d.department_id  == null || d.department_id  === '' ? undefined : Number(d.department_id),
@@ -363,6 +364,9 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
             </Field>
             <Field label="Passport number" error={err('passport_number')}>
               <Input {...register('passport_number')} />
+            </Field>
+            <Field label="Biometric ID" error={err('biometric_id')} hint="Punch / attendance device ID. Used by attendance integrations.">
+              <Input {...register('biometric_id')} placeholder="e.g. BIO-1042" />
             </Field>
           </Grid>
         </Section>

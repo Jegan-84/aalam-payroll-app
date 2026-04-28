@@ -2,11 +2,13 @@ import { notFound } from 'next/navigation'
 import { getCurrentEmployee } from '@/lib/auth/dal'
 import { getEmployee } from '@/lib/employees/queries'
 import { getDeclaration } from '@/lib/tax/queries'
+import { getPriorEarnings } from '@/lib/tax/prior-earnings'
 import { getFyContext } from '@/lib/leave/queries'
 import { listEmployeePoi } from '@/lib/poi/queries'
 import { createClient } from '@/lib/supabase/server'
 import { DeclarationForm } from '@/app/(app)/employees/[id]/declaration/_components/declaration-form'
 import { PoiPanel } from './_components/poi-panel'
+import { PriorEarningsForm } from './_components/prior-earnings-form'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardBody } from '@/components/ui/card'
 
@@ -16,7 +18,7 @@ export default async function MyDeclarationPage() {
   const { employeeId } = await getCurrentEmployee()
   const fy = await getFyContext()
 
-  const [emp, declaration, activeStructure, poiDocs] = await Promise.all([
+  const [emp, declaration, activeStructure, poiDocs, prior] = await Promise.all([
     getEmployee(employeeId),
     getDeclaration(employeeId, fy.fyStart),
     (async () => {
@@ -31,6 +33,7 @@ export default async function MyDeclarationPage() {
       return data
     })(),
     listEmployeePoi(employeeId, fy.fyStart),
+    getPriorEarnings(employeeId, fy.fyStart),
   ])
   if (!emp) notFound()
 
@@ -76,6 +79,13 @@ export default async function MyDeclarationPage() {
         fyLabel={fy.label}
         readonly={declaration?.status === 'approved'}
         docs={poiDocs}
+      />
+
+      <PriorEarningsForm
+        fyStart={fy.fyStart}
+        fyLabel={fy.label}
+        defaults={prior ?? undefined}
+        locked={Boolean(prior?.verified_at)}
       />
 
       {declaration && (declaration.status === 'submitted' || declaration.status === 'approved') && (

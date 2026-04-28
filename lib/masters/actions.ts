@@ -7,9 +7,11 @@ import {
   DepartmentSchema,
   DesignationSchema,
   ProjectSchema,
+  ActivityTypeSchema,
   type DepartmentState,
   type DesignationState,
   type ProjectState,
+  type ActivityTypeState,
 } from '@/lib/masters/schemas'
 
 type Errors<T> = { [K in keyof T]?: string[] } & { _form?: string[] }
@@ -132,5 +134,48 @@ export async function saveProjectAction(
   })
 
   revalidatePath('/settings/projects')
+  return { ok: true }
+}
+
+// -----------------------------------------------------------------------------
+// Activity types — used by the timesheet module
+// -----------------------------------------------------------------------------
+export async function saveActivityTypeAction(
+  _prev: ActivityTypeState,
+  formData: FormData,
+): Promise<ActivityTypeState> {
+  const session = await requireRole('admin', 'hr')
+  const parsed = ActivityTypeSchema.safeParse(Object.fromEntries(formData.entries()))
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors as Errors<typeof ActivityTypeSchema.type> }
+  }
+  const input = parsed.data
+  const admin = createAdminClient()
+  const row = {
+    code: input.code.toUpperCase(),
+    name: input.name,
+    is_active: input.is_active,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (input.id) {
+    const { error } = await admin.from('activity_types').update(row).eq('id', input.id)
+    if (error) return { errors: { _form: [error.message] } }
+  } else {
+    const { error } = await admin.from('activity_types').insert(row)
+    if (error) return { errors: { _form: [error.message] } }
+  }
+
+  await admin.from('audit_log').insert({
+    actor_user_id: session.userId,
+    actor_email: session.email,
+    action: input.id ? 'activity_type.update' : 'activity_type.create',
+    entity_type: 'activity_type',
+    entity_id: String(input.id ?? row.code),
+    summary: `${input.id ? 'Updated' : 'Created'} activity type ${row.code} — ${row.name}`,
+  })
+
+  revalidatePath('/settings/activity-types')
+  revalidatePath('/me/timesheet')
   return { ok: true }
 }

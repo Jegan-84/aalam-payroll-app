@@ -18,6 +18,7 @@ export type EmployeeBulkRow = {
   aadhaar_number?: string
   uan_number?: string
   esi_number?: string
+  biometric_id?: string
   department_code?: string
   designation_code?: string
   location_code?: string
@@ -119,6 +120,7 @@ export async function bulkCreateEmployeesAction(
       aadhaar_number: emptyToNull(r.aadhaar_number),
       uan_number: emptyToNull(r.uan_number),
       esi_number: emptyToNull(r.esi_number),
+      biometric_id: emptyToNull(r.biometric_id),
       department_id: departmentId,
       designation_id: designationId,
       location_id: locationId,

@@ -9,6 +9,7 @@ import { meta as compOffMeta,        default as CompOff }        from './comp-of
 import { meta as holidaysMeta,       default as Holidays }       from './holidays'
 import { meta as payrollMeta,        default as Payroll }        from './payroll'
 import { meta as tdsMeta,            default as Tds }            from './tds'
+import { meta as priorEarningsMeta,  default as PriorEarnings }  from './prior-earnings'
 import { meta as reportsMeta,        default as Reports }        from './reports'
 import { meta as settingsMeta,       default as Settings }       from './settings'
 
@@ -24,6 +25,7 @@ export const ADMIN_DOCS: DocEntry[] = [
   { meta: holidaysMeta,       Component: Holidays       },
   { meta: payrollMeta,        Component: Payroll        },
   { meta: tdsMeta,            Component: Tds            },
+  { meta: priorEarningsMeta,  Component: PriorEarnings  },
   { meta: reportsMeta,        Component: Reports        },
 ]
 

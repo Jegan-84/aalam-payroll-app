@@ -54,8 +54,21 @@ export const ProjectSchema = z.object({
 
 export type ProjectInput = z.infer<typeof ProjectSchema>
 
+export const ActivityTypeSchema = z.object({
+  id: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.coerce.number().int().positive().optional(),
+  ),
+  code: codeStr('Activity'),
+  name: z.string().trim().min(1, 'Name is required'),
+  is_active: boolField(),
+})
+
+export type ActivityTypeInput = z.infer<typeof ActivityTypeSchema>
+
 export type MasterFormErrors<T extends object> = Partial<Record<keyof T | '_form', string[]>>
 export type MasterFormResult<T extends object> = { errors?: MasterFormErrors<T>; ok?: boolean }
 export type DepartmentState = MasterFormResult<DepartmentInput> | undefined
 export type DesignationState = MasterFormResult<DesignationInput> | undefined
 export type ProjectState = MasterFormResult<ProjectInput> | undefined
+export type ActivityTypeState = MasterFormResult<ActivityTypeInput> | undefined

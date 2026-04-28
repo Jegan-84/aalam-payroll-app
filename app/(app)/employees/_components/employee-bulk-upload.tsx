@@ -21,6 +21,7 @@ const columns: Column<EmployeeBulkRow>[] = [
   { key: 'pan_number',          label: 'PAN',          width: '130px' },
   { key: 'aadhaar_number',      label: 'Aadhaar',      width: '140px' },
   { key: 'uan_number',          label: 'UAN',          width: '130px' },
+  { key: 'biometric_id',        label: 'Biometric ID', width: '130px' },
   { key: 'personal_email',      label: 'Personal email', width: '200px' },
   { key: 'personal_phone',      label: 'Phone',        width: '130px' },
   { key: 'bank_name',           label: 'Bank',         width: '140px' },
