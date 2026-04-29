@@ -24,6 +24,7 @@ export const ROUTE_ROLES: Record<string, AdminRole[]> = {
   '/employees':      ['admin', 'hr'],
   '/attendance':     ['admin', 'hr', 'payroll'],
   '/leave':          ['admin', 'hr'],
+  '/leave/plan-report': ['admin', 'hr', 'payroll'],
 
   '/salary':         ['admin', 'payroll'],
   '/payroll':        ['admin', 'payroll'],

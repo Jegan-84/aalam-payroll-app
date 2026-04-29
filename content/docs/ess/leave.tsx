@@ -53,6 +53,15 @@ export default function Article() {
         <li>Submit. The application appears in &quot;My applications&quot; with status <code>submitted</code>.</li>
       </ol>
 
+      <h2>Half-day leave</h2>
+      <p>
+        When the <strong>from</strong> and <strong>to</strong> dates are the same day, an
+        <em> &quot;Apply as half-day&quot;</em> checkbox appears below the date pickers. Tick it to file the
+        application as a 0.5-day leave — the working-days line flips to <code>Half-day leave: 0.5</code>
+        and only half a day is deducted from your balance on approval. The half-day flag is locked to
+        single-day applications; expanding the range hides the checkbox automatically.
+      </p>
+
       <div className="callout callout-warn">
         <strong>Watch out:</strong> If your range covers project holidays or weekends, those days don&apos;t
         count against your balance — but the <em>day count</em> shown is what gets deducted on approval.

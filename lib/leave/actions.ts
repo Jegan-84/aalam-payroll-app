@@ -28,14 +28,18 @@ export async function applyLeaveAction(
     getHolidaysForEmployeeInRange(input.employee_id, input.from_date, input.to_date),
   ])
 
-  const daysCount = countLeaveDays(input.from_date, input.to_date, {
+  const fullDaysCount = countLeaveDays(input.from_date, input.to_date, {
     weeklyOffDays,
     holidayDates: holidays,
   })
 
-  if (daysCount <= 0) {
+  if (fullDaysCount <= 0) {
     return { errors: { _form: ['The chosen range has no working days (all WOs/holidays).'] } }
   }
+
+  // Half-day applies only on single-date applications (enforced by the schema
+  // refine + DB constraint). When set, deduct 0.5 instead of 1 from balance.
+  const daysCount = input.is_half_day ? 0.5 : fullDaysCount
 
   const leaveType = leaveTypes.find((t) => t.id === input.leave_type_id)
   if (!leaveType) return { errors: { leave_type_id: ['Unknown leave type.'] } }
@@ -72,6 +76,7 @@ export async function applyLeaveAction(
       from_date: input.from_date,
       to_date: input.to_date,
       days_count: daysCount,
+      is_half_day: input.is_half_day,
       reason: input.reason ?? null,
       status: 'pending',
       applied_by: session.userId,
@@ -87,14 +92,14 @@ export async function applyLeaveAction(
     action: 'leave.apply',
     entity_type: 'leave_application',
     entity_id: data.id,
-    summary: `Leave applied: ${leaveType.code} ${input.from_date} → ${input.to_date} (${daysCount}d)`,
+    summary: `Leave applied: ${leaveType.code} ${input.from_date} → ${input.to_date} (${daysCount}d${input.is_half_day ? ' — half day' : ''})`,
   })
 
   // Notify HR + admins that a new leave application needs review.
   const { notifyByRoles } = await import('@/lib/notifications/service')
   await notifyByRoles(['admin', 'hr'], {
     kind: 'leave.applied',
-    title: `Leave request — ${leaveType.code} (${daysCount}d)`,
+    title: `Leave request — ${leaveType.code} (${daysCount}d${input.is_half_day ? ' · half-day' : ''})`,
     body: `${input.from_date} → ${input.to_date}. Click to review.`,
     href: `/leave/${data.id}`,
     severity: 'info',

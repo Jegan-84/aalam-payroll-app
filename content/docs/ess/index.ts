@@ -3,6 +3,7 @@ import type { DocMeta } from '@/components/docs/doc-layout'
 
 import { meta as overviewMeta,       default as Overview }       from './overview'
 import { meta as leaveMeta,          default as Leave }          from './leave'
+import { meta as monthlyPlanMeta,    default as MonthlyPlan }    from './monthly-plan'
 import { meta as compOffMeta,        default as CompOff }        from './comp-off'
 import { meta as holidaysMeta,       default as Holidays }       from './holidays'
 import { meta as payslipsMeta,       default as Payslips }       from './payslips'
@@ -14,11 +15,12 @@ export type DocEntry = { meta: DocMeta; Component: ComponentType }
 
 // Order here drives the index display + prev/next nav.
 export const ESS_DOCS: DocEntry[] = [
-  { meta: overviewMeta,  Component: Overview  },
-  { meta: leaveMeta,     Component: Leave     },
-  { meta: compOffMeta,   Component: CompOff   },
-  { meta: holidaysMeta,  Component: Holidays  },
-  { meta: payslipsMeta,  Component: Payslips  },
+  { meta: overviewMeta,       Component: Overview      },
+  { meta: leaveMeta,          Component: Leave         },
+  { meta: monthlyPlanMeta,    Component: MonthlyPlan   },
+  { meta: compOffMeta,        Component: CompOff       },
+  { meta: holidaysMeta,       Component: Holidays      },
+  { meta: payslipsMeta,       Component: Payslips      },
   { meta: taxDeclMeta,        Component: TaxDecl       },
   { meta: priorEarningsMeta,  Component: PriorEarnings },
   { meta: reimbMeta,          Component: Reimb         },

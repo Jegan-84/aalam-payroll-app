@@ -308,7 +308,10 @@ export function PayslipDocument({ data }: { data: PayslipData }) {
   const comps = [...components].sort((a, b) => a.display_order - b.display_order)
   const earnings = comps.filter((c) => c.kind === 'earning' && c.amount !== 0)
   const deductions = comps.filter((c) => c.kind === 'deduction' && c.amount !== 0)
-  const perquisites = comps.filter((c) => c.kind === 'perquisite' && c.amount !== 0)
+  // Loan perquisites are notional (used only for TDS, not paid). Hidden from
+  // the payslip — the perquisite value is already folded into TDS. Keep the
+  // array empty so the existing render guards become no-ops.
+  const perquisites: typeof comps = []
 
   const rows = Math.max(earnings.length, deductions.length, 5)
   const paddedRows: Array<{ left: { name: string; amount: number } | null; right: { name: string; amount: number } | null }> = []

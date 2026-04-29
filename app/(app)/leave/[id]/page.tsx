@@ -49,8 +49,15 @@ export default async function LeaveDetailPage({ params }: { params: PP }) {
             <dd className="mt-0.5 text-slate-900 dark:text-slate-100">{app.to_date}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Working days</dt>
-            <dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{app.days_count}</dd>
+            <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Days</dt>
+            <dd className="mt-0.5 flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
+              <span>{Number(app.days_count).toFixed(1)}</span>
+              {app.is_half_day && (
+                <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                  ½ day
+                </span>
+              )}
+            </dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Applied at</dt>

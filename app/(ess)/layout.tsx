@@ -1,4 +1,4 @@
-import { requireRole, getCurrentEmployee } from '@/lib/auth/dal'
+import { getUserWithRoles, getCurrentEmployee } from '@/lib/auth/dal'
 import { EssSidebar } from './_components/ess-sidebar'
 import { SnackbarProvider } from '@/components/ui/snackbar'
 import { ActionBlocker } from '@/components/ui/action-blocker'
@@ -8,7 +8,10 @@ import { getApprovalScope } from '@/lib/timesheet/approval-queries'
 export default async function EssLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const me = await requireRole('employee')
+  // Anyone with an employee record can use /me/* — including admin/HR/payroll
+  // users who are also employees of the org. getCurrentEmployee() bounces to
+  // /dashboard for users with no employee row (admin-only seats).
+  const me = await getUserWithRoles()
   await getCurrentEmployee()
   // For the "Team timesheets" sidebar entry — show only when there's
   // something to approve (manager with reports, or admin/HR).

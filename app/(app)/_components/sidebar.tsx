@@ -28,7 +28,6 @@ const GROUPS: NavGroup[] = [
       { href: '/leave',             label: 'Leave',             icon: <IconSun /> },
       { href: '/leave/balances',    label: 'Leave Balances',    icon: <IconGauge />, sub: true },
       { href: '/comp-off',          label: 'Comp Off',           icon: <IconSun />, sub: true },
-      { href: '/timesheet/reports', label: 'Timesheet Reports',  icon: <IconChartBar />, sub: true },
       { href: '/payroll',           label: 'Payroll Runs',      icon: <IconPlay /> },
       { href: '/loans',             label: 'Loans',             icon: <IconBank />, sub: true },
       { href: '/reimbursements',    label: 'Reimbursements',    icon: <IconReceipt />, sub: true },
@@ -36,11 +35,20 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
-    heading: 'Tax & Reports',
+    heading: 'Tax',
     items: [
       { href: '/declarations', label: 'Tax Declarations',  icon: <IconDoc /> },
       { href: '/tds',          label: 'TDS & Form 16',     icon: <IconReceipt /> },
-      { href: '/reports',      label: 'Statutory Reports', icon: <IconFolder /> },
+    ],
+  },
+  {
+    heading: 'Reports',
+    items: [
+      { href: '/timesheet/reports',         label: 'Timesheet — Hours',     icon: <IconChartBar /> },
+      { href: '/timesheet/daily-grid',      label: 'Timesheet — Daily Grid', icon: <IconCalendarDays /> },
+      { href: '/timesheet/reconciliation',  label: 'Timesheet × Leave',     icon: <IconChartBar /> },
+      { href: '/leave/plan-report',         label: 'Monthly Plans',         icon: <IconCalendarDays /> },
+      { href: '/reports',                   label: 'Statutory Reports',     icon: <IconFolder /> },
     ],
   },
   {
@@ -52,6 +60,19 @@ const GROUPS: NavGroup[] = [
     ],
   },
 ]
+
+// Shown to admin/HR/payroll users who are ALSO employees of the org. Lets
+// them file their own timesheet / leave / plan without switching accounts.
+const ESS_GROUP: NavGroup = {
+  heading: 'My Self-Service',
+  items: [
+    { href: '/me',           label: 'My Overview',     icon: <IconUser /> },
+    { href: '/me/timesheet', label: 'My Timesheet',    icon: <IconClock /> },
+    { href: '/me/leave',     label: 'My Leave',        icon: <IconSun /> },
+    { href: '/me/plan',      label: 'My Monthly Plan', icon: <IconCalendarDays /> },
+    { href: '/me/payslips',  label: 'My Payslips',     icon: <IconReceipt />, sub: true },
+  ],
+}
 
 const STORAGE_KEY = 'payflow.sidebar_collapsed'
 const SIDEBAR_EVENT = 'payflow:sidebar-toggle'
@@ -71,11 +92,19 @@ function getSidebarServerSnapshot() {
   return false
 }
 
-export function Sidebar({ email, fullName, roles }: { email: string; fullName: string | null; roles: string[] }) {
+export function Sidebar({
+  email, fullName, roles, hasEmployeeRecord = false,
+}: {
+  email: string
+  fullName: string | null
+  roles: string[]
+  hasEmployeeRecord?: boolean
+}) {
   const pathname = usePathname()
 
   // Filter nav items by the user's roles so HR never sees Payroll-only items and vice versa.
-  const visibleGroups: NavGroup[] = GROUPS
+  const baseGroups = hasEmployeeRecord ? [...GROUPS, ESS_GROUP] : GROUPS
+  const visibleGroups: NavGroup[] = baseGroups
     .map((g) => ({
       ...g,
       items: g.items.filter((i) => canAccess(i.href, roles)),
@@ -245,3 +274,6 @@ function IconChevronLeft()  { return <svg {...iconProps}><path d="m15 18-6-6 6-6
 function IconChevronRight() { return <svg {...iconProps}><path d="m9 18 6-6-6-6"/></svg> }
 function IconHelp()         { return <svg {...iconProps}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> }
 function IconChartBar()     { return <svg {...iconProps}><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg> }
+function IconUser()         { return <svg {...iconProps}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> }
+function IconClock()        { return <svg {...iconProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> }
+function IconCalendarDays() { return <svg {...iconProps}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/><circle cx="8" cy="14.5" r="0.5"/><circle cx="12" cy="14.5" r="0.5"/><circle cx="16" cy="14.5" r="0.5"/></svg> }

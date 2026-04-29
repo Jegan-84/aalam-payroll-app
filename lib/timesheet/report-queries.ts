@@ -2,12 +2,18 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 
 // -----------------------------------------------------------------------------
-// Common entry-fetch helper. Pulls every approved + submitted entry in the
-// window with the embeds the reports need, then we aggregate in JS.
+// Common entry-fetch helper. Pulls every relevant entry in the window with
+// the embeds the reports need, then we aggregate in JS.
 //
-// Design choice: only `approved` rows count for reports by default. `submitted`
-// rows are still in flux. Drafts never count. Pass `includeSubmitted: true`
-// if HR wants a "live" view including in-flight weeks.
+// Design choice: by default reports show only `approved` data — clean,
+// signed-off numbers HR can hand to finance. Pass `includeSubmitted: true`
+// to also fold in in-flight weeks: BOTH `submitted` (pending manager
+// approval) and `draft` (employee has entered but not submitted yet). This
+// is what HR / managers want when they need to see "who's logged what so
+// far this month" without waiting for approvals.
+//
+// `rejected` weeks are always excluded — those entries are pending fixes
+// and will be re-submitted under a new status.
 // -----------------------------------------------------------------------------
 export type RawEntry = {
   employee_id: string
@@ -31,7 +37,9 @@ async function fetchEntriesInRange(
 ): Promise<RawEntry[]> {
   const supabase = await createClient()
 
-  const statuses = opts.includeSubmitted ? ['approved', 'submitted'] : ['approved']
+  const statuses = opts.includeSubmitted
+    ? ['approved', 'submitted', 'draft']   // "live" — every entry the employee has logged
+    : ['approved']                          // signed-off only
   const { data: weeks } = await supabase
     .from('timesheet_weeks')
     .select('employee_id, week_start, status')

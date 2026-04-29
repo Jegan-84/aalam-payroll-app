@@ -14,6 +14,7 @@ export type LeaveApplicationRow = {
   from_date: string
   to_date: string
   days_count: number
+  is_half_day: boolean
   reason: string | null
   status: LeaveStatus
   applied_at: string
@@ -47,7 +48,7 @@ export async function listLeaveApplications(filters: Filters = {}) {
     .from('leave_applications')
     .select(
       `
-      id, employee_id, leave_type_id, from_date, to_date, days_count, reason, status,
+      id, employee_id, leave_type_id, from_date, to_date, days_count, is_half_day, reason, status,
       applied_at, reviewed_at,
       employee:employees!inner ( id, employee_code, full_name_snapshot ),
       leave_type:leave_types!inner ( id, code, name )

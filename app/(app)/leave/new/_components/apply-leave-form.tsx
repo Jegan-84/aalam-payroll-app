@@ -18,12 +18,21 @@ export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDa
   const [state, action, pending] = useBlockingActionState(applyLeaveAction, undefined)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [isHalfDay, setIsHalfDay] = useState(false)
 
   const holidaysSet = useMemo(() => new Set(holidayDates), [holidayDates])
-  const days = useMemo(() => {
+  const fullDays = useMemo(() => {
     if (!from || !to || to < from) return 0
     return countLeaveDays(from, to, { weeklyOffDays, holidayDates: holidaysSet })
   }, [from, to, weeklyOffDays, holidaysSet])
+
+  // Half-day applies only on a single-day range. The checkbox is rendered
+  // (and its value submitted) only when from == to, so if the user expands
+  // the range the input simply unmounts and the form receives no half-day
+  // flag — local state can stay set without affecting submission.
+  const sameDay = !!from && from === to
+  const halfDayEffective = sameDay && isHalfDay
+  const days = halfDayEffective ? 0.5 : fullDays
 
   const err = (k: keyof LeaveFormErrors) => state?.errors?.[k]?.[0]
 
@@ -87,10 +96,28 @@ export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDa
 
           <div className="flex items-end">
             <div className="w-full rounded-md border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950">
-              <span className="text-slate-500 dark:text-slate-400">Working days in range:</span>{' '}
+              <span className="text-slate-500 dark:text-slate-400">{halfDayEffective ? 'Half-day leave:' : 'Working days in range:'}</span>{' '}
               <span className="font-semibold text-slate-900 dark:text-slate-100">{days}</span>
             </div>
           </div>
+
+          {sameDay && (
+            <div className="sm:col-span-2">
+              <label
+                className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                title="Half-day applies only when the from and to dates match. 0.5 day will be deducted from your balance."
+              >
+                <input
+                  type="checkbox"
+                  name="is_half_day"
+                  checked={isHalfDay}
+                  onChange={(e) => setIsHalfDay(e.target.checked)}
+                />
+                Apply as <strong>half-day</strong> leave (0.5 day)
+              </label>
+              {err('is_half_day') && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{err('is_half_day')}</p>}
+            </div>
+          )}
         </div>
       </div>
 

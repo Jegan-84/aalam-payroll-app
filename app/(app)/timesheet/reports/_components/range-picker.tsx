@@ -58,13 +58,16 @@ export function RangePicker({
         <Preset onClick={() => preset('this_quarter')}>This quarter</Preset>
         <Preset onClick={() => preset('this_fy')}>This FY</Preset>
 
-        <label className="ml-2 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+        <label
+          className="ml-2 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+          title="When on, includes drafts + submitted — everything the employee has logged. When off, only signed-off (approved) data."
+        >
           <input
             type="checkbox"
             checked={live}
             onChange={(e) => apply({ live: e.target.checked })}
           />
-          Include submitted
+          Include drafts &amp; submitted
         </label>
       </div>
     </div>

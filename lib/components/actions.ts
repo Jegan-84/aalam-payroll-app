@@ -100,6 +100,26 @@ export async function saveAdjustmentAction(formData: FormData): Promise<{ ok?: t
     return { error: `Cycle is ${cycle.status}; reopen before editing adjustments.` }
   }
 
+  // Statutory + system-derived components are off-limits to manual edits:
+  //   • BASIC/HRA/CONV/OTHERALLOW/MEDINS — derived from the salary structure
+  //   • PF_EE — capped at ₹1,800 by statutory rule
+  //   • LOAN_<id> — engine writes min(emi, outstanding) and posts a ledger row
+  //     on approve. Override would desync the loan ledger.
+  //   • PERQ_<id> — notional perquisite from concessional-rate spread; not paid
+  //     out, only used for TDS. Edit makes no sense.
+  // ESI_EE and GRATUITY remain editable.
+  const codeUpper = input.code.toUpperCase()
+  const STATUTORY_LOCKED = new Set(['BASIC', 'HRA', 'CONV', 'OTHERALLOW', 'MEDINS', 'PF_EE'])
+  if (
+    STATUTORY_LOCKED.has(codeUpper) ||
+    codeUpper.startsWith('LOAN_') ||
+    codeUpper.startsWith('PERQ_')
+  ) {
+    return {
+      error: `${codeUpper} is a system-derived component and can't be overridden, skipped, or duplicated. ESI and Gratuity remain editable.`,
+    }
+  }
+
   const { error } = await admin
     .from('payroll_item_adjustments')
     .upsert(

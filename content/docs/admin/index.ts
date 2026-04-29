@@ -5,8 +5,10 @@ import { meta as overviewMeta,       default as Overview }       from './overvie
 import { meta as employeesMeta,      default as Employees }      from './employees'
 import { meta as leavePoliciesMeta,  default as LeavePolicies }  from './leave-policies'
 import { meta as leaveBalancesMeta,  default as LeaveBalances }  from './leave-balances'
+import { meta as monthlyPlansMeta,   default as MonthlyPlans }   from './monthly-plans'
 import { meta as compOffMeta,        default as CompOff }        from './comp-off'
 import { meta as holidaysMeta,       default as Holidays }       from './holidays'
+import { meta as timesheetMeta,      default as Timesheet }      from './timesheet'
 import { meta as payrollMeta,        default as Payroll }        from './payroll'
 import { meta as tdsMeta,            default as Tds }            from './tds'
 import { meta as priorEarningsMeta,  default as PriorEarnings }  from './prior-earnings'
@@ -21,8 +23,10 @@ export const ADMIN_DOCS: DocEntry[] = [
   { meta: employeesMeta,      Component: Employees      },
   { meta: leavePoliciesMeta,  Component: LeavePolicies  },
   { meta: leaveBalancesMeta,  Component: LeaveBalances  },
+  { meta: monthlyPlansMeta,   Component: MonthlyPlans   },
   { meta: compOffMeta,        Component: CompOff        },
   { meta: holidaysMeta,       Component: Holidays       },
+  { meta: timesheetMeta,      Component: Timesheet      },
   { meta: payrollMeta,        Component: Payroll        },
   { meta: tdsMeta,            Component: Tds            },
   { meta: priorEarningsMeta,  Component: PriorEarnings  },

@@ -38,7 +38,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: SP }
       <PageHeader
         title="Timesheet reports"
         back={{ href: '/dashboard', label: 'Dashboard' }}
-        subtitle={`Showing ${from} to ${to}. ${includeSubmitted ? 'Includes submitted (in-flight) weeks.' : 'Approved weeks only.'}`}
+        subtitle={`Showing ${from} to ${to}. ${includeSubmitted ? 'Live view: includes drafts + submitted (everything the employee has logged).' : 'Approved weeks only.'}`}
         actions={
           <Link
             href={exportHref}
@@ -95,7 +95,9 @@ async function ProjectTab({ from, to, includeSubmitted }: { from: string; to: st
         </div>
       </div>
       {rows.length === 0 ? (
-        <p className="px-6 py-12 text-center text-sm text-slate-500">No approved entries in this range.</p>
+        <p className="px-6 py-12 text-center text-sm text-slate-500">
+          No entries in this range. {includeSubmitted ? '' : 'Tick "Include drafts & submitted" to see live data.'}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
@@ -140,7 +142,9 @@ async function EmployeeTab({ from, to, includeSubmitted }: { from: string; to: s
         </div>
       </div>
       {rows.length === 0 ? (
-        <p className="px-6 py-12 text-center text-sm text-slate-500">No approved entries in this range.</p>
+        <p className="px-6 py-12 text-center text-sm text-slate-500">
+          No entries in this range. {includeSubmitted ? '' : 'Tick "Include drafts & submitted" to see live data.'}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
@@ -201,7 +205,9 @@ async function ActivityTab({ from, to, includeSubmitted }: { from: string; to: s
         </div>
       </div>
       {rows.length === 0 ? (
-        <p className="px-6 py-12 text-center text-sm text-slate-500">No approved entries in this range.</p>
+        <p className="px-6 py-12 text-center text-sm text-slate-500">
+          No entries in this range. {includeSubmitted ? '' : 'Tick "Include drafts & submitted" to see live data.'}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">

@@ -29,6 +29,12 @@ export default async function MyTimesheetIndexPage() {
         actions={
           <div className="flex items-center gap-2">
             <Link
+              href="/me/timesheet/import"
+              className="inline-flex h-9 items-center whitespace-nowrap rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+            >
+              Import from Excel/CSV
+            </Link>
+            <Link
               href={`/me/timesheet/${today}`}
               className="inline-flex h-9 items-center whitespace-nowrap rounded-md bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700 active:bg-brand-800"
             >
