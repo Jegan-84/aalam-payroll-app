@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import {
   approveTimesheetWeekAction,
   rejectTimesheetWeekAction,
@@ -12,12 +13,17 @@ import {
 export function ApprovalActions({ weekId }: { weekId: string }) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [showReject, setShowReject] = useState(false)
   const [note, setNote] = useState('')
 
-  const approve = () => {
-    if (!confirm('Approve this timesheet?')) return
+  const approve = async () => {
+    if (!await confirm({
+      title: 'Approve this timesheet?',
+      body: 'The week will be locked. The employee can request a reopen if they need to fix something.',
+      confirmLabel: 'Approve',
+    })) return
     const fd = new FormData()
     fd.set('week_id', weekId)
     startTransition(async () => {

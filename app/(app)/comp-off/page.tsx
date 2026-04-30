@@ -1,5 +1,6 @@
 import {
   listPendingCompOffRequests,
+  listSubmittedCompOffRequests,
   listRecentCompOffRequests,
 } from '@/lib/leave/comp-off-queries'
 import { PageHeader } from '@/components/ui/page-header'
@@ -9,33 +10,58 @@ import { CompOffApprovalQueue } from './_components/approval-queue'
 export const metadata = { title: 'Comp Off requests' }
 
 const TONE_CLASS: Record<string, string> = {
-  submitted: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-  approved:  'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
-  rejected:  'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200',
-  cancelled: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  submitted:        'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+  manager_approved: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+  approved:         'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
+  rejected:         'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200',
+  cancelled:        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  submitted:        'awaiting manager',
+  manager_approved: 'awaiting HR',
+  approved:         'approved',
+  rejected:         'rejected',
+  cancelled:        'cancelled',
 }
 
 export default async function CompOffRequestsPage() {
-  const [pending, recent] = await Promise.all([
-    listPendingCompOffRequests(),
+  const [hrPending, managerPending, recent] = await Promise.all([
+    listPendingCompOffRequests(),       // status = manager_approved
+    listSubmittedCompOffRequests(),      // status = submitted
     listRecentCompOffRequests({ limit: 50 }),
   ])
 
-  const history = recent.filter((r) => r.status !== 'submitted')
+  const history = recent.filter((r) => r.status !== 'submitted' && r.status !== 'manager_approved')
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Comp Off"
-        subtitle="Approve or reject employee comp off requests. Approved grants expire 30 days after the work date."
+        subtitle="Two-stage approval: reporting manager → HR. Grant + balance credit happen only on HR approval. Grants expire 30 days after the work date."
       />
 
       <Card className="overflow-hidden p-0">
         <CardHeader>
-          <CardTitle>Pending ({pending.length})</CardTitle>
+          <CardTitle>Awaiting HR — final approval ({hrPending.length})</CardTitle>
         </CardHeader>
         <CardBody className="p-0">
-          <CompOffApprovalQueue rows={pending} />
+          <CompOffApprovalQueue rows={hrPending} />
+        </CardBody>
+      </Card>
+
+      <Card className="overflow-hidden p-0">
+        <CardHeader>
+          <CardTitle>Awaiting reporting manager ({managerPending.length})</CardTitle>
+        </CardHeader>
+        <CardBody className="p-0">
+          {managerPending.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-slate-500">
+              Nothing waiting on managers. Reporting managers see their team&apos;s requests on <code>/me/comp-off/approvals</code>.
+            </p>
+          ) : (
+            <CompOffApprovalQueue rows={managerPending} />
+          )}
         </CardBody>
       </Card>
 
@@ -69,7 +95,7 @@ export default async function CompOffRequestsPage() {
                       <td className="px-3 py-2 tabular-nums">{r.work_date}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{Number(r.days_requested).toFixed(1)}</td>
                       <td className="px-3 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TONE_CLASS[r.status]}`}>{r.status}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TONE_CLASS[r.status]}`}>{STATUS_LABEL[r.status] ?? r.status}</span>
                       </td>
                       <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.decision_note ?? '—'}</td>
                       <td className="px-3 py-2 text-[11px] text-slate-500">

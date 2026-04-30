@@ -1,8 +1,17 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { verifySession, requireRole } from '@/lib/auth/dal'
+import { requireRole } from '@/lib/auth/dal'
+import { submitConfigChange } from '@/lib/config-approvals/actions'
+
+// =============================================================================
+// Statutory configuration — two-level approval.
+// =============================================================================
+// HR / payroll fills out the form; nothing is written to `statutory_config`
+// directly. We persist the proposed values in `config_pending_changes` and an
+// admin reviews + approves on /settings/approvals. On approval, the dispatcher
+// in lib/config-approvals/appliers.ts calls applyStatutoryUpdate /
+// applyStatutoryRollPeriod which performs the actual mutation.
+// =============================================================================
 
 type NumericField =
   | 'epf_employee_percent' | 'epf_employer_percent'
@@ -30,7 +39,6 @@ const FIELDS: Array<{ key: NumericField; min: number; max: number; label: string
 export async function saveStatutoryConfigAction(
   formData: FormData,
 ): Promise<{ ok?: true; error?: string }> {
-  const session = await verifySession()
   await requireRole('admin', 'hr', 'payroll')
 
   const id = String(formData.get('id') ?? '')
@@ -45,42 +53,34 @@ export async function saveStatutoryConfigAction(
     patch[f.key] = v
   }
 
-  const admin = createAdminClient()
-  const { error } = await admin.from('statutory_config').update(patch).eq('id', id)
-  if (error) return { error: error.message }
-
-  await admin.from('audit_log').insert({
-    actor_user_id: session.userId,
-    actor_email: session.email,
-    action: 'statutory.update',
-    entity_type: 'statutory_config',
-    entity_id: id,
-    summary: 'Updated statutory configuration',
-    after_state: patch,
+  const res = await submitConfigChange({
+    target_table: 'statutory_config',
+    action: 'update',
+    target_id: id,
+    payload: { id, ...patch },
+    description: 'Update statutory configuration (PF / ESI / gratuity / CTC structure)',
   })
-
-  revalidatePath('/settings/statutory')
-  revalidatePath('/settings/components')
+  if (res.error) return { error: res.error }
   return { ok: true }
 }
 
 // -----------------------------------------------------------------------------
 // rollNewStatutoryPeriod — closes the current period and opens a new one with
-// its own effective_from. Use this when the government revises rates (PF/ESI
-// ceiling change, etc.) so historical payslips can still be reconstructed
-// against the rates that were in force at the time.
+// its own effective_from. Goes through the same approval gate.
+//
+// New periods can pick the ESI calculation basis ('gross' | 'basic'); this is
+// locked once the period is created. Existing rows default to 'gross', which
+// preserves the historical behaviour for any data filed before this feature.
 // -----------------------------------------------------------------------------
 export async function rollStatutoryPeriodAction(
   formData: FormData,
 ): Promise<{ ok?: true; error?: string; id?: string }> {
-  const session = await verifySession()
   await requireRole('admin', 'hr', 'payroll')
 
   const effectiveFrom = String(formData.get('effective_from') ?? '')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) return { error: 'Invalid effective_from date' }
 
-  // Collect + validate values for the NEW period.
-  const patch: Record<string, number> = {}
+  const patch: Record<string, number | string> = {}
   for (const f of FIELDS) {
     const v = Number(formData.get(f.key))
     if (!Number.isFinite(v) || v < f.min || v > f.max) {
@@ -89,56 +89,19 @@ export async function rollStatutoryPeriodAction(
     patch[f.key] = v
   }
 
-  const admin = createAdminClient()
-
-  // Find the currently-active period (the one whose range covers `effectiveFrom − 1`).
-  const priorEnd = new Date(new Date(effectiveFrom + 'T00:00:00Z').getTime() - 86_400_000)
-    .toISOString()
-    .slice(0, 10)
-  const { data: current } = await admin
-    .from('statutory_config')
-    .select('id, effective_from, effective_to')
-    .lte('effective_from', priorEnd)
-    .or(`effective_to.is.null,effective_to.gte.${priorEnd}`)
-    .order('effective_from', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (current) {
-    if ((current.effective_from as string) >= effectiveFrom) {
-      return { error: 'New effective date must be AFTER the current period started.' }
-    }
-    // Close the current period.
-    const { error: closeErr } = await admin
-      .from('statutory_config')
-      .update({ effective_to: priorEnd })
-      .eq('id', current.id)
-    if (closeErr) return { error: closeErr.message }
+  const esiBasisRaw = String(formData.get('esi_basis') ?? 'gross').toLowerCase()
+  if (esiBasisRaw !== 'gross' && esiBasisRaw !== 'basic') {
+    return { error: 'ESI basis must be gross or basic' }
   }
+  patch.esi_basis = esiBasisRaw
 
-  // Insert the new period.
-  const { data: inserted, error } = await admin
-    .from('statutory_config')
-    .insert({
-      ...patch,
-      effective_from: effectiveFrom,
-      effective_to: null,
-    })
-    .select('id')
-    .single()
-  if (error) return { error: error.message }
-
-  await admin.from('audit_log').insert({
-    actor_user_id: session.userId,
-    actor_email: session.email,
-    action: 'statutory.roll_period',
-    entity_type: 'statutory_config',
-    entity_id: inserted.id,
-    summary: `Rolled new statutory period effective ${effectiveFrom}`,
-    after_state: patch,
+  const res = await submitConfigChange({
+    target_table: 'statutory_config',
+    action: 'roll_period',
+    target_id: null,
+    payload: { effective_from: effectiveFrom, ...patch },
+    description: `Roll new statutory period effective ${effectiveFrom} (ESI on ${esiBasisRaw})`,
   })
-
-  revalidatePath('/settings/statutory')
-  revalidatePath('/settings/components')
-  return { ok: true, id: inserted.id as string }
+  if (res.error) return { error: res.error }
+  return { ok: true, id: res.id }
 }

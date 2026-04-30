@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { submitReimbursementAction, deleteReimbursementAction } from '@/lib/reimbursements/actions'
 import type { ReimbursementClaimRow } from '@/lib/reimbursements/queries'
 import { CATEGORY_LABELS } from '@/lib/reimbursements/constants'
@@ -18,6 +19,7 @@ const STATUS_TONE: Record<string, string> = {
 
 export function ReimbursementSubmit({ claims }: { claims: ReimbursementClaimRow[] }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const formRef = useRef<HTMLFormElement | null>(null)
@@ -37,8 +39,13 @@ export function ReimbursementSubmit({ claims }: { claims: ReimbursementClaimRow[
     })
   }
 
-  const onDelete = (id: string) => {
-    if (!confirm('Delete this claim? Only pending claims can be deleted.')) return
+  const onDelete = async (id: string) => {
+    if (!await confirm({
+      title: 'Delete this claim?',
+      body: 'Only pending claims can be deleted.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })) return
     setMsg(null)
     const fd = new FormData()
     fd.set('id', id)
@@ -84,7 +91,7 @@ export function ReimbursementSubmit({ claims }: { claims: ReimbursementClaimRow[
           <button
             type="submit"
             disabled={pending}
-            className="sm:col-span-5 h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+            className="sm:col-span-5 inline-flex h-9 items-center justify-center rounded-md bg-brand-600 px-3 text-sm font-medium text-white shadow-sm hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? 'Uploading…' : 'Submit claim'}
           </button>

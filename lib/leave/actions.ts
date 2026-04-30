@@ -3,11 +3,65 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { verifySession, requireRole } from '@/lib/auth/dal'
+import { verifySession, requireRole, getUserWithRoles } from '@/lib/auth/dal'
 import { countLeaveDays, iterateDatesInclusive } from '@/lib/leave/engine'
 import { getHolidaysForEmployeeInRange, getLeaveContext } from '@/lib/leave/queries'
 import { resolveLeaveYear } from '@/lib/leave/year'
 import { ApplyLeaveSchema, type LeaveFormErrors, type LeaveFormState } from '@/lib/leave/schemas'
+
+// -----------------------------------------------------------------------------
+// Two-stage approval helpers
+// -----------------------------------------------------------------------------
+// Resolve the current session user's own employee_id (used for the
+// reports_to check on stage 1 — managers approving their direct reports).
+async function getActorEmployeeId(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  email: string,
+): Promise<string | null> {
+  const { data: byId } = await admin
+    .from('employees').select('id').eq('user_id', userId).maybeSingle()
+  if (byId?.id) return byId.id as string
+  if (email) {
+    const { data: byEmail } = await admin
+      .from('employees').select('id').eq('work_email', email).maybeSingle()
+    if (byEmail?.id) return byEmail.id as string
+  }
+  return null
+}
+
+async function notifyReportingManagerOrHr(args: {
+  admin: ReturnType<typeof createAdminClient>
+  employeeId: string
+  applicationId: string
+  title: string
+  body: string
+}): Promise<void> {
+  const { data: emp } = await args.admin
+    .from('employees').select('reports_to').eq('id', args.employeeId).maybeSingle()
+  const managerEmployeeId = (emp?.reports_to as string | null) ?? null
+
+  const { createNotification, notifyByRoles } = await import('@/lib/notifications/service')
+  if (managerEmployeeId) {
+    await createNotification({
+      employeeId: managerEmployeeId,
+      kind: 'leave.applied',
+      title: args.title,
+      body: args.body,
+      href: `/leave/${args.applicationId}`,
+      severity: 'info',
+    })
+  } else {
+    // No reporting manager — fall back to HR / admin so the request isn't lost.
+    await notifyByRoles(['admin', 'hr'], {
+      kind: 'leave.applied',
+      title: args.title,
+      body: args.body,
+      href: `/leave/${args.applicationId}`,
+      severity: 'info',
+    })
+  }
+}
 
 // -----------------------------------------------------------------------------
 // apply
@@ -68,6 +122,15 @@ export async function applyLeaveAction(
   }
 
   const admin = createAdminClient()
+
+  // Stage-1 auto-skip: if the employee has no reporting manager configured,
+  // route straight to HR (status='manager_approved') so the request isn't
+  // stuck in limbo.
+  const { data: emp } = await admin
+    .from('employees').select('reports_to').eq('id', input.employee_id).maybeSingle()
+  const hasManager = !!(emp?.reports_to as string | null | undefined)
+  const initialStatus = hasManager ? 'pending' : 'manager_approved'
+
   const { data, error } = await admin
     .from('leave_applications')
     .insert({
@@ -78,7 +141,9 @@ export async function applyLeaveAction(
       days_count: daysCount,
       is_half_day: input.is_half_day,
       reason: input.reason ?? null,
-      status: 'pending',
+      status: initialStatus,
+      manager_approved_at: hasManager ? null : new Date().toISOString(),
+      manager_decision_note: hasManager ? null : 'No reporting manager configured — auto-routed to HR.',
       applied_by: session.userId,
     })
     .select('id')
@@ -92,27 +157,35 @@ export async function applyLeaveAction(
     action: 'leave.apply',
     entity_type: 'leave_application',
     entity_id: data.id,
-    summary: `Leave applied: ${leaveType.code} ${input.from_date} → ${input.to_date} (${daysCount}d${input.is_half_day ? ' — half day' : ''})`,
+    summary: `Leave applied: ${leaveType.code} ${input.from_date} → ${input.to_date} (${daysCount}d${input.is_half_day ? ' — half day' : ''})${hasManager ? '' : ' [no manager — routed to HR]'}`,
   })
 
-  // Notify HR + admins that a new leave application needs review.
-  const { notifyByRoles } = await import('@/lib/notifications/service')
-  await notifyByRoles(['admin', 'hr'], {
-    kind: 'leave.applied',
-    title: `Leave request — ${leaveType.code} (${daysCount}d${input.is_half_day ? ' · half-day' : ''})`,
-    body: `${input.from_date} → ${input.to_date}. Click to review.`,
-    href: `/leave/${data.id}`,
-    severity: 'info',
-  })
+  // Stage-1 routing: notify the reporting manager. If none, notify HR for
+  // direct stage-2 approval.
+  const title = `Leave request — ${leaveType.code} (${daysCount}d${input.is_half_day ? ' · half-day' : ''})`
+  const body  = `${input.from_date} → ${input.to_date}. Click to review.`
+  if (hasManager) {
+    await notifyReportingManagerOrHr({
+      admin, employeeId: input.employee_id, applicationId: data.id, title, body,
+    })
+  } else {
+    const { notifyByRoles } = await import('@/lib/notifications/service')
+    await notifyByRoles(['admin', 'hr'], {
+      kind: 'leave.applied', title, body, href: `/leave/${data.id}`, severity: 'info',
+    })
+  }
 
   revalidatePath('/leave')
+  revalidatePath('/me/leave/approvals')
   redirect(`/leave/${data.id}`)
 }
 
 // -----------------------------------------------------------------------------
-// approve
+// approve — stage-aware. Drives the two-step manager → HR workflow:
+//   pending           → manager_approved   (reporting manager OR admin)
+//   manager_approved  → approved           (admin / HR; balance + attendance updates run here)
 // -----------------------------------------------------------------------------
-export async function approveLeaveAction(formData: FormData) {
+export async function approveLeaveAction(formData: FormData): Promise<void> {
   const session = await verifySession()
   const id = String(formData.get('id') ?? '')
   const notes = (formData.get('notes') as string | null) ?? null
@@ -125,16 +198,88 @@ export async function approveLeaveAction(formData: FormData) {
     .eq('id', id)
     .maybeSingle()
   if (fetchErr || !app) return
-
-  if (app.status !== 'pending') return
+  if (app.status === 'approved') return                              // already final
+  if (app.status === 'rejected' || app.status === 'cancelled') return
 
   type LT = { id: number; code: string; is_paid: boolean }
   const lt = (Array.isArray(app.leave_type) ? app.leave_type[0] : app.leave_type) as LT | null
   if (!lt) return
 
+  const me = await getUserWithRoles()
+  const isAdmin = me.roles.includes('admin')
+  const isHr    = me.roles.includes('hr')
+
+  // ---------------------------------------------------------------------
+  // STAGE 1: pending → manager_approved
+  // Only the employee's reporting manager (or an admin) can advance this.
+  // ---------------------------------------------------------------------
+  if (app.status === 'pending') {
+    const actorEmployeeId = await getActorEmployeeId(admin, session.userId, session.email)
+    const isReportingManager =
+      !!actorEmployeeId &&
+      (await admin
+        .from('employees')
+        .select('reports_to')
+        .eq('id', app.employee_id as string)
+        .maybeSingle()
+      ).data?.reports_to === actorEmployeeId
+
+    if (!(isAdmin || isReportingManager)) return
+
+    await admin
+      .from('leave_applications')
+      .update({
+        status: 'manager_approved',
+        manager_approved_at: new Date().toISOString(),
+        manager_approved_by: session.userId,
+        manager_decision_note: notes,
+      })
+      .eq('id', id)
+      .eq('status', 'pending')
+
+    await admin.from('audit_log').insert({
+      actor_user_id: session.userId,
+      actor_email: session.email,
+      action: 'leave.manager_approve',
+      entity_type: 'leave_application',
+      entity_id: id,
+      summary: `Manager approved ${lt.code} ${app.from_date} → ${app.to_date} (awaiting HR)`,
+      after_state: { notes },
+    })
+
+    // Hand-off to HR.
+    const { notifyByRoles, createNotification } = await import('@/lib/notifications/service')
+    await notifyByRoles(['admin', 'hr'], {
+      kind: 'leave.manager_approved',
+      title: `Manager approved — ${lt.code} (${Number(app.days_count).toFixed(1)}d)`,
+      body: `${app.from_date} → ${app.to_date}. Awaiting HR final approval.`,
+      href: `/leave/${id}`,
+      severity: 'info',
+    })
+    // Keep the employee in the loop.
+    await createNotification({
+      employeeId: app.employee_id as string,
+      kind: 'leave.reviewed',
+      title: `Leave — manager approved (awaiting HR)`,
+      body: `Your ${lt.code} for ${app.from_date} → ${app.to_date} cleared the first stage. HR will review next.`,
+      href: `/me/leave`,
+      severity: 'info',
+    })
+
+    revalidatePath('/leave')
+    revalidatePath(`/leave/${id}`)
+    revalidatePath('/me/leave/approvals')
+    return
+  }
+
+  // ---------------------------------------------------------------------
+  // STAGE 2: manager_approved → approved
+  // Only admin / HR can finalise. Balance + attendance updates run here.
+  // ---------------------------------------------------------------------
+  if (!(isAdmin || isHr)) return
+
   const fy = resolveLeaveYear(new Date((app.from_date as string) + 'T00:00:00Z'))
 
-  // 1. Mark application approved
   await admin
     .from('leave_applications')
     .update({
@@ -144,10 +289,10 @@ export async function approveLeaveAction(formData: FormData) {
       review_notes: notes,
     })
     .eq('id', id)
+    .eq('status', 'manager_approved')
 
-  // 2. Deduct from balance (only for paid leave types)
+  // Deduct from balance (only for paid leave types)
   if (lt.is_paid) {
-    // Ensure a row exists for this FY+type, then increment `used`
     await admin
       .from('leave_balances')
       .upsert(
@@ -176,7 +321,7 @@ export async function approveLeaveAction(formData: FormData) {
     }
   }
 
-  // 3. Write LEAVE/LOP cells into attendance_days for every working day in range
+  // Write LEAVE/LOP cells into attendance_days for every working day in range
   const { weeklyOffDays } = await getLeaveContext()
   const holidays = await getHolidaysForEmployeeInRange(
     app.employee_id as string,
@@ -217,80 +362,111 @@ export async function approveLeaveAction(formData: FormData) {
     action: 'leave.approve',
     entity_type: 'leave_application',
     entity_id: id,
-    summary: `Approved ${lt.code} ${app.from_date} → ${app.to_date}`,
+    summary: `HR approved ${lt.code} ${app.from_date} → ${app.to_date}`,
     after_state: { notes },
   })
 
-  // Notify the employee.
+  // Final notification to the employee.
   const { createNotification } = await import('@/lib/notifications/service')
   await createNotification({
     employeeId: app.employee_id as string,
     kind: 'leave.reviewed',
     title: `Leave approved — ${lt.code}`,
-    body: `Your ${lt.code} for ${app.from_date} → ${app.to_date} has been approved.`,
+    body: `Your ${lt.code} for ${app.from_date} → ${app.to_date} has been approved by HR.`,
     href: `/me/leave`,
     severity: 'success',
   })
 
   revalidatePath('/leave')
   revalidatePath(`/leave/${id}`)
+  revalidatePath('/me/leave/approvals')
   revalidatePath('/attendance')
 }
 
 // -----------------------------------------------------------------------------
-// reject
+// reject — works on either stage. Rejection is terminal regardless of stage;
+// no balance changes (the leave was never approved). The note is recorded
+// against the appropriate column so the audit trail is clear.
 // -----------------------------------------------------------------------------
-export async function rejectLeaveAction(formData: FormData) {
+export async function rejectLeaveAction(formData: FormData): Promise<void> {
   const session = await verifySession()
   const id = String(formData.get('id') ?? '')
   const notes = (formData.get('notes') as string | null) ?? null
   if (!id) return
 
   const admin = createAdminClient()
-
   const { data: app } = await admin
     .from('leave_applications')
-    .select('employee_id, from_date, to_date, leave_type:leave_types ( code )')
+    .select('employee_id, from_date, to_date, status, leave_type:leave_types ( code )')
     .eq('id', id)
     .maybeSingle()
+  if (!app) return
+  if (app.status === 'rejected') return
+  if (app.status !== 'pending' && app.status !== 'manager_approved') return
+
+  const me = await getUserWithRoles()
+  const isAdmin = me.roles.includes('admin')
+  const isHr    = me.roles.includes('hr')
+
+  // Stage-specific authorization, mirroring approve: pending stage allows the
+  // reporting manager; manager_approved stage allows HR/admin.
+  if (app.status === 'pending') {
+    const actorEmployeeId = await getActorEmployeeId(admin, session.userId, session.email)
+    const isReportingManager =
+      !!actorEmployeeId &&
+      (await admin
+        .from('employees')
+        .select('reports_to')
+        .eq('id', app.employee_id as string)
+        .maybeSingle()
+      ).data?.reports_to === actorEmployeeId
+    if (!(isAdmin || isReportingManager)) return
+  } else if (app.status === 'manager_approved') {
+    if (!(isAdmin || isHr)) return
+  }
+
+  // Note routing: manager_decision_note for stage-1 rejection, review_notes
+  // for stage-2 rejection. Status flips to 'rejected' either way.
+  const update: Record<string, unknown> = {
+    status: 'rejected',
+    reviewed_at: new Date().toISOString(),
+    reviewed_by: session.userId,
+  }
+  if (app.status === 'pending') update.manager_decision_note = notes
+  else update.review_notes = notes
 
   await admin
     .from('leave_applications')
-    .update({
-      status: 'rejected',
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: session.userId,
-      review_notes: notes,
-    })
+    .update(update)
     .eq('id', id)
-    .eq('status', 'pending')
+    .eq('status', app.status as string)
 
+  const stageLabel = app.status === 'pending' ? 'manager' : 'HR'
   await admin.from('audit_log').insert({
     actor_user_id: session.userId,
     actor_email: session.email,
-    action: 'leave.reject',
+    action: app.status === 'pending' ? 'leave.manager_reject' : 'leave.reject',
     entity_type: 'leave_application',
     entity_id: id,
-    summary: `Rejected leave application`,
+    summary: `Rejected leave application at ${stageLabel} stage`,
     after_state: { notes },
   })
 
-  if (app) {
-    const lt = Array.isArray(app.leave_type) ? app.leave_type[0] : app.leave_type
-    const code = (lt as { code?: string } | null)?.code ?? 'leave'
-    const { createNotification } = await import('@/lib/notifications/service')
-    await createNotification({
-      employeeId: app.employee_id as string,
-      kind: 'leave.reviewed',
-      title: `Leave rejected — ${code}`,
-      body: `Your ${code} for ${app.from_date} → ${app.to_date} was rejected${notes ? `: ${notes}` : '.'}`,
-      href: `/me/leave`,
-      severity: 'warn',
-    })
-  }
+  const lt = Array.isArray(app.leave_type) ? app.leave_type[0] : app.leave_type
+  const code = (lt as { code?: string } | null)?.code ?? 'leave'
+  const { createNotification } = await import('@/lib/notifications/service')
+  await createNotification({
+    employeeId: app.employee_id as string,
+    kind: 'leave.reviewed',
+    title: `Leave rejected — ${code}`,
+    body: `Your ${code} for ${app.from_date} → ${app.to_date} was rejected by ${stageLabel}${notes ? `: ${notes}` : '.'}`,
+    href: `/me/leave`,
+    severity: 'warn',
+  })
 
   revalidatePath('/leave')
   revalidatePath(`/leave/${id}`)
+  revalidatePath('/me/leave/approvals')
 }
 
 // -----------------------------------------------------------------------------

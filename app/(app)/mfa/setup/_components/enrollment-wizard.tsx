@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import {
   enrollTotpAction,
   unenrollFactorAction,
@@ -25,6 +26,7 @@ type Enrollment = { factorId: string; qrCode: string; secret: string }
 export function EnrollmentWizard({ factors, hasVerified }: Props) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [enrolling, startEnroll] = useBlockingTransition()
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -66,7 +68,12 @@ export function EnrollmentWizard({ factors, hasVerified }: Props) {
   }
 
   const onRemove = async (factorId: string) => {
-    if (!confirm('Remove this authenticator? You will lose 2FA protection on the next login.')) return
+    if (!await confirm({
+      title: 'Remove this authenticator?',
+      body: 'You will lose 2FA protection on the next login.',
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    })) return
     setRemovingId(factorId)
     try {
       const fd = new FormData()

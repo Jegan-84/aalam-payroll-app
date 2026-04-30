@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import {
   approveTimesheetWeekAction,
   bulkApproveTimesheetWeeksAction,
@@ -23,6 +24,7 @@ type Row = {
 export function ApprovalQueueTable({ rows }: { rows: Row[] }) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -49,9 +51,13 @@ export function ApprovalQueueTable({ rows }: { rows: Row[] }) {
     })
   }
 
-  const bulkApprove = () => {
+  const bulkApprove = async () => {
     if (selected.size === 0) return
-    if (!confirm(`Approve ${selected.size} timesheet${selected.size === 1 ? '' : 's'}?`)) return
+    if (!await confirm({
+      title: `Approve ${selected.size} timesheet${selected.size === 1 ? '' : 's'}?`,
+      body: 'Each selected week will be locked. The employee can request a reopen if they need to fix something.',
+      confirmLabel: 'Approve all',
+    })) return
     const fd = new FormData()
     fd.set('week_ids', Array.from(selected).join(','))
     startTransition(async () => {

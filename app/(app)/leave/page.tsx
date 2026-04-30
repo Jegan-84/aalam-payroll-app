@@ -12,15 +12,24 @@ export const metadata = { title: 'Leave' }
 type SP = Promise<{ status?: string; page?: string }>
 
 const STATUS_TONE: Record<LeaveStatus, 'warn' | 'success' | 'danger' | 'neutral'> = {
-  pending:   'warn',
-  approved:  'success',
-  rejected:  'danger',
-  cancelled: 'neutral',
+  pending:          'warn',
+  manager_approved: 'warn',
+  approved:         'success',
+  rejected:         'danger',
+  cancelled:        'neutral',
+}
+
+const STATUS_LABEL: Record<LeaveStatus, string> = {
+  pending:          'awaiting manager',
+  manager_approved: 'awaiting HR',
+  approved:         'approved',
+  rejected:         'rejected',
+  cancelled:        'cancelled',
 }
 
 export default async function LeaveListPage({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams
-  const status = (sp.status && ['pending','approved','rejected','cancelled'].includes(sp.status)
+  const status = (sp.status && ['pending','manager_approved','approved','rejected','cancelled'].includes(sp.status)
     ? (sp.status as LeaveStatus)
     : undefined)
   const pageNum = sp.page ? Number(sp.page) : 1
@@ -42,7 +51,8 @@ export default async function LeaveListPage({ searchParams }: { searchParams: SP
 
       <div className="flex flex-wrap gap-2 text-sm">
         <TabLink href="/leave" label="All" active={!status} />
-        <TabLink href="/leave?status=pending" label="Pending" active={status === 'pending'} />
+        <TabLink href="/leave?status=pending" label="Awaiting manager" active={status === 'pending'} />
+        <TabLink href="/leave?status=manager_approved" label="Awaiting HR" active={status === 'manager_approved'} />
         <TabLink href="/leave?status=approved" label="Approved" active={status === 'approved'} />
         <TabLink href="/leave?status=rejected" label="Rejected" active={status === 'rejected'} />
         <TabLink href="/leave?status=cancelled" label="Cancelled" active={status === 'cancelled'} />
@@ -85,7 +95,7 @@ export default async function LeaveListPage({ searchParams }: { searchParams: SP
                     )}
                   </Td>
                   <Td className="text-xs text-slate-500">{formatTs(r.applied_at)}</Td>
-                  <Td><Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge></Td>
+                  <Td><Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge></Td>
                   <Td><Link href={`/leave/${r.id}`} className="text-xs font-medium text-brand-700 hover:underline">View →</Link></Td>
                 </tr>
               ))}

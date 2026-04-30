@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { saveTdsChallanAction, deleteTdsChallanAction } from '@/lib/tds/challan-actions'
 import type { TdsChallanRow } from '@/lib/tds/challan-queries'
 
@@ -14,6 +15,7 @@ type Props = {
 
 export function ChallanForm({ mode, defaults = {} }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
@@ -35,9 +37,14 @@ export function ChallanForm({ mode, defaults = {} }: Props) {
     })
   }
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!defaults.id) return
-    if (!confirm('Delete this challan? This only removes the record; the bank deposit itself is not affected.')) return
+    if (!await confirm({
+      title: 'Delete this challan?',
+      body: 'This only removes the record; the bank deposit itself is not affected.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })) return
     setMsg(null)
     const fd = new FormData()
     fd.set('id', defaults.id)

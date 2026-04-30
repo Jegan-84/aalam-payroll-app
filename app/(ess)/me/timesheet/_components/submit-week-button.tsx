@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import { submitWeekAction } from '@/lib/timesheet/actions'
 
 export function SubmitWeekButton({
@@ -10,10 +11,15 @@ export function SubmitWeekButton({
 }: { weekStart: string; totalHours: number; disabled?: boolean }) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
 
-  const submit = () => {
-    if (!confirm(`Submit week starting ${weekStart} for approval? Total hours: ${totalHours.toFixed(2)}`)) return
+  const submit = async () => {
+    if (!await confirm({
+      title: `Submit week of ${weekStart}?`,
+      body: `Total hours: ${totalHours.toFixed(2)}. Once submitted you can't edit until your manager reviews it.`,
+      confirmLabel: 'Submit',
+    })) return
     const fd = new FormData()
     fd.set('week_start', weekStart)
     startTransition(async () => {

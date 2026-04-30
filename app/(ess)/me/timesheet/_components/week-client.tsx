@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import { saveWeekDraftAction, submitWeekAction } from '@/lib/timesheet/actions'
 
 type WorkMode = 'WFH' | 'WFO'
@@ -46,6 +47,7 @@ export function WeekClient({
 }: Props) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [rows, setRows] = useState<ClientRow[]>(initialRows)
   const [isDirty, setIsDirty] = useState(false)
@@ -114,13 +116,17 @@ export function WeekClient({
   }
 
   // ---------- Submit ----------
-  const submit = () => {
+  const submit = async () => {
     if (isDirty) {
       snack.show({ kind: 'warn', message: 'You have unsaved changes. Save them first, then submit.' })
       return
     }
     const total = rows.reduce((s, r) => s + Object.values(r.hoursByDate).reduce((a, b) => a + Number(b || 0), 0), 0)
-    if (!confirm(`Submit week starting ${weekStart} for approval?\n\nTotal hours: ${total.toFixed(2)}\n\nOnce submitted you can't edit until your manager either approves or rejects.`)) return
+    if (!await confirm({
+      title: `Submit week of ${weekStart}?`,
+      body: `Total hours: ${total.toFixed(2)}. Once submitted you can't edit until your manager either approves or rejects.`,
+      confirmLabel: 'Submit',
+    })) return
     const fd = new FormData()
     fd.set('week_start', weekStart)
     startTransition(async () => {

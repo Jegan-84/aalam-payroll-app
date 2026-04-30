@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/card'
 export const metadata = { title: 'Activity types' }
 
 const fields = [
-  { key: 'code',      label: 'Code',     placeholder: 'DEV',         upper: true, colWidth: 'w-32' },
+  { key: 'code',      label: 'Code',     placeholder: 'DEV',         upper: true, colWidth: 'w-32', readOnly: 'on-edit' as const },
   { key: 'name',      label: 'Name',     placeholder: 'Development', colWidth: 'w-60' },
   { key: 'is_active', label: 'Active',   type: 'checkbox' as const },
 ]

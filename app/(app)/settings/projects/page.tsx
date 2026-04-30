@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/card'
 export const metadata = { title: 'Projects' }
 
 const fields = [
-  { key: 'code',      label: 'Code',   placeholder: 'ACME',     upper: true, colWidth: 'w-32' },
+  { key: 'code',      label: 'Code',   placeholder: 'ACME',     upper: true, colWidth: 'w-32', readOnly: 'on-edit' as const },
   { key: 'name',      label: 'Name',   placeholder: 'Acme Platform', colWidth: 'w-60' },
   { key: 'client',    label: 'Client', placeholder: 'Acme Inc. (optional)', colWidth: 'w-52' },
   { key: 'is_active', label: 'Active', type: 'checkbox' as const },

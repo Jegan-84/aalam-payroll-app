@@ -5,7 +5,7 @@ import { verifySession } from '@/lib/auth/dal'
 import { resolveFy } from '@/lib/leave/engine'
 import { getWeeklyOffDays } from '@/lib/attendance/queries'
 
-export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+export type LeaveStatus = 'pending' | 'manager_approved' | 'approved' | 'rejected' | 'cancelled'
 
 export type LeaveApplicationRow = {
   id: string
@@ -19,6 +19,9 @@ export type LeaveApplicationRow = {
   status: LeaveStatus
   applied_at: string
   reviewed_at: string | null
+  manager_approved_at: string | null
+  manager_approved_by: string | null
+  manager_decision_note: string | null
   employee: { id: string; employee_code: string; full_name_snapshot: string }
   leave_type: { id: number; code: string; name: string }
 }
@@ -50,6 +53,7 @@ export async function listLeaveApplications(filters: Filters = {}) {
       `
       id, employee_id, leave_type_id, from_date, to_date, days_count, is_half_day, reason, status,
       applied_at, reviewed_at,
+      manager_approved_at, manager_approved_by, manager_decision_note,
       employee:employees!inner ( id, employee_code, full_name_snapshot ),
       leave_type:leave_types!inner ( id, code, name )
     `,
@@ -82,6 +86,60 @@ export async function listLeaveApplications(filters: Filters = {}) {
   return { rows, total, page: Math.min(page, totalPages), totalPages }
 }
 
+/**
+ * Leaves awaiting the calling user as the reporting manager — i.e. status='pending'
+ * for any direct report (employees.reports_to == calling user's employee id).
+ * Returns [] if the caller has no reports or no employee record.
+ */
+export async function listMyTeamPendingLeaves(): Promise<LeaveApplicationRow[]> {
+  await verifySession()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: meEmp } = await supabase
+    .from('employees').select('id').eq('user_id', user.id).maybeSingle()
+  let myEmpId = meEmp?.id as string | undefined
+  if (!myEmpId && user.email) {
+    const { data: byEmail } = await supabase
+      .from('employees').select('id').eq('work_email', user.email).maybeSingle()
+    myEmpId = byEmail?.id as string | undefined
+  }
+  if (!myEmpId) return []
+
+  const { data, error } = await supabase
+    .from('leave_applications')
+    .select(`
+      id, employee_id, leave_type_id, from_date, to_date, days_count, is_half_day, reason, status,
+      applied_at, reviewed_at,
+      manager_approved_at, manager_approved_by, manager_decision_note,
+      employee:employees!inner ( id, employee_code, full_name_snapshot, reports_to ),
+      leave_type:leave_types!inner ( id, code, name )
+    `)
+    .eq('status', 'pending')
+    .order('applied_at', { ascending: false })
+  if (error) throw new Error(error.message)
+
+  type EmpEmbed = { id: string; employee_code: string; full_name_snapshot: string; reports_to: string | null }
+  type Row = Omit<LeaveApplicationRow, 'employee' | 'leave_type'> & {
+    employee: EmbedOne<EmpEmbed>
+    leave_type: EmbedOne<LeaveApplicationRow['leave_type']>
+  }
+  const rows = ((data ?? []) as unknown as Row[])
+    .map((r) => {
+      const emp = unwrap(r.employee)
+      const lt = unwrap(r.leave_type)
+      if (!emp || !lt) return null
+      return { row: r, emp, lt }
+    })
+    .filter((x): x is { row: Row; emp: EmpEmbed; lt: LeaveApplicationRow['leave_type'] } => x !== null)
+    // Manager filter — only direct reports.
+    .filter((x) => x.emp.reports_to === myEmpId)
+    .map((x) => ({ ...x.row, employee: { id: x.emp.id, employee_code: x.emp.employee_code, full_name_snapshot: x.emp.full_name_snapshot }, leave_type: x.lt }))
+
+  return rows
+}
+
 export const getLeaveApplication = cache(async (id: string) => {
   await verifySession()
   const supabase = await createClient()
@@ -90,7 +148,7 @@ export const getLeaveApplication = cache(async (id: string) => {
     .select(
       `
       *,
-      employee:employees!inner ( id, employee_code, full_name_snapshot, work_email ),
+      employee:employees!inner ( id, employee_code, full_name_snapshot, work_email, reports_to ),
       leave_type:leave_types!inner ( id, code, name, is_paid )
     `,
     )
@@ -98,7 +156,8 @@ export const getLeaveApplication = cache(async (id: string) => {
     .maybeSingle()
   if (error) throw new Error(error.message)
   if (!data) return null
-  const emp = unwrap(data.employee as EmbedOne<{ id: string; employee_code: string; full_name_snapshot: string; work_email: string }>)
+  type EmpEmbed = { id: string; employee_code: string; full_name_snapshot: string; work_email: string; reports_to: string | null }
+  const emp = unwrap(data.employee as EmbedOne<EmpEmbed>)
   const lt  = unwrap(data.leave_type as EmbedOne<{ id: number; code: string; name: string; is_paid: boolean }>)
   if (!emp || !lt) return null
   return { ...data, employee: emp, leave_type: lt }

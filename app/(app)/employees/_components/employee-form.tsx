@@ -525,7 +525,7 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
           <button
             type="submit"
             disabled={pending}
-            className="inline-flex h-9 items-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+            className="inline-flex h-9 items-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? 'Saving…' : mode === 'create' ? 'Create employee' : 'Save changes'}
           </button>

@@ -65,6 +65,9 @@ export default async function StatutorySettingsPage() {
                   </Td>
                   <Td className="text-xs text-slate-600 dark:text-slate-400">
                     {p.esi_employee_percent}% + {p.esi_employer_percent}%, ≤ {formatInr(p.esi_wage_ceiling)}
+                    <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      on {p.esi_basis}
+                    </span>
                   </Td>
                   <Td className="text-xs text-slate-600 dark:text-slate-400">{p.gratuity_percent}%</Td>
                   <Td>

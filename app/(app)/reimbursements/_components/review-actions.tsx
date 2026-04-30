@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { approveReimbursementAction, rejectReimbursementAction, deleteReimbursementAction } from '@/lib/reimbursements/actions'
 
 type Status = 'pending' | 'approved' | 'rejected' | 'paid'
 
 export function ReviewActions({ id, status }: { id: string; status: Status }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [rejectOpen, setRejectOpen] = useState(false)
   const [notes, setNotes] = useState('')
@@ -37,7 +39,11 @@ export function ReviewActions({ id, status }: { id: string; status: Status }) {
         <span className="text-xs text-slate-500">approved — pending next payroll</span>
         <button
           type="button"
-          onClick={() => confirm('Delete this approved (unpaid) claim?') && run(deleteReimbursementAction)}
+          onClick={async () => {
+            if (await confirm({ body: 'Delete this approved (unpaid) claim?', confirmLabel: 'Delete', tone: 'danger' })) {
+              run(deleteReimbursementAction)
+            }
+          }}
           disabled={pending}
           className="text-xs text-red-700 underline disabled:opacity-50 dark:text-red-400"
         >

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { rollStatutoryPeriodAction } from '@/lib/statutory/actions'
 
 type Seed = {
@@ -17,19 +18,25 @@ type Seed = {
   esi_employee_percent: number
   esi_employer_percent: number
   esi_wage_ceiling: number
+  esi_basis?: 'gross' | 'basic'
   gratuity_percent: number
 }
 
 export function RollPeriodForm({ seed, minDate }: { seed: Seed; minDate: string }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [err, setErr] = useState<string | null>(null)
 
-  const submit = (e: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setErr(null)
-    if (!confirm('Roll a new statutory period? The current period will be closed on the day before, and the new values take effect from the date above. This is permanent.')) return
     const fd = new FormData(e.currentTarget)
+    if (!await confirm({
+      title: 'Roll a new statutory period?',
+      body: 'The current period will be closed on the day before, and the new values take effect from the date above. This is permanent.',
+      confirmLabel: 'Roll period',
+    })) return
     startTransition(async () => {
       const res = await rollStatutoryPeriodAction(fd)
       if (res.error) setErr(res.error)
@@ -65,6 +72,16 @@ export function RollPeriodForm({ seed, minDate }: { seed: Seed; minDate: string 
           <FieldN name="esi_employee_percent" label="ESI employee %" step="0.01" defaultValue={seed.esi_employee_percent} />
           <FieldN name="esi_employer_percent" label="ESI employer %" step="0.01" defaultValue={seed.esi_employer_percent} />
           <FieldN name="esi_wage_ceiling" label="ESI wage ceiling ₹" step="1" defaultValue={seed.esi_wage_ceiling} />
+          <FieldSelect
+            name="esi_basis"
+            label="ESI calculation basis"
+            defaultValue={seed.esi_basis ?? 'gross'}
+            options={[
+              { value: 'gross', label: 'Gross (default)' },
+              { value: 'basic', label: 'Basic' },
+            ]}
+            hint="Picks which wage figure ESI is a % of. Locked once this period is created."
+          />
           <FieldN name="gratuity_percent" label="Gratuity %" step="0.0001" defaultValue={seed.gratuity_percent} />
         </div>
       </div>
@@ -117,6 +134,31 @@ function FieldN({
         required
         className="mt-1 h-9 rounded-md border border-slate-300 bg-white px-3 text-right text-sm tabular-nums dark:border-slate-700 dark:bg-slate-950"
       />
+    </label>
+  )
+}
+
+function FieldSelect({
+  name, label, defaultValue, options, hint,
+}: {
+  name: string
+  label: string
+  defaultValue: string
+  options: Array<{ value: string; label: string }>
+  hint?: string
+}) {
+  return (
+    <label className="flex flex-col">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</span>
+      <select
+        name={name}
+        defaultValue={defaultValue}
+        required
+        className="mt-1 h-9 rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+      >
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      {hint && <span className="mt-1 text-[10px] text-slate-500">{hint}</span>}
     </label>
   )
 }

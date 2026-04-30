@@ -152,26 +152,36 @@ export async function upsertEntryAction(
 
   await ensureWeekRow(admin, employeeId, weekStart)
 
-  // Upsert via the unique grid index.
+  // Delete any existing row matching the unique tuple, then insert. We avoid
+  // upsert-with-onConflict here because the unique index uses an expression
+  // (coalesce(task, '')) that the JS client can't target via onConflict.
+  let delQ = admin
+    .from('timesheet_entries')
+    .delete()
+    .eq('employee_id', employeeId)
+    .eq('entry_date', input.entry_date)
+    .eq('project_id', input.project_id)
+    .eq('activity_type_id', input.activity_type_id)
+    .eq('work_mode', input.work_mode)
+  delQ = task === null ? delQ.is('task', null) : delQ.eq('task', task)
+  const { error: delErr } = await delQ
+  if (delErr) return { error: delErr.message }
+
   const { error } = await admin
     .from('timesheet_entries')
-    .upsert(
-      {
-        employee_id: employeeId,
-        project_id: input.project_id,
-        activity_type_id: input.activity_type_id,
-        entry_date: input.entry_date,
-        hours,
-        task,
-        description: input.description ?? null,
-        work_mode: input.work_mode,
-        start_at: startIso,
-        end_at: endIso,
-        source: 'manual',
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'employee_id,entry_date,project_id,activity_type_id,task,work_mode' },
-    )
+    .insert({
+      employee_id: employeeId,
+      project_id: input.project_id,
+      activity_type_id: input.activity_type_id,
+      entry_date: input.entry_date,
+      hours,
+      task,
+      description: input.description ?? null,
+      work_mode: input.work_mode,
+      start_at: startIso,
+      end_at: endIso,
+      source: 'manual',
+    })
   if (error) return { error: error.message }
 
   await recalcWeekTotal(admin, employeeId, weekStart)
@@ -489,14 +499,18 @@ export async function copyLastWeekAction(
     work_mode: b.work_mode,
     source: 'manual' as const,
   }))
+  // Plain insert — dedup against the current week is already done above via
+  // `existing`. Avoid upsert-with-onConflict because the unique index uses
+  // an expression (coalesce(task, '')) that the JS client can't target.
   const { error, count } = await admin
     .from('timesheet_entries')
-    .upsert(rows, {
-      onConflict: 'employee_id,entry_date,project_id,activity_type_id,task,work_mode',
-      ignoreDuplicates: true,
-      count: 'exact',
-    })
-  if (error) return { error: error.message }
+    .insert(rows, { count: 'exact' })
+  if (error) {
+    if (error.code === '23505' || /duplicate key/i.test(error.message)) {
+      return { ok: true, copied: 0 }
+    }
+    return { error: error.message }
+  }
 
   revalidatePath('/me/timesheet', 'layout')
   return { ok: true, copied: count ?? rows.length }
@@ -504,8 +518,10 @@ export async function copyLastWeekAction(
 
 // -----------------------------------------------------------------------------
 // importTimesheetEntriesAction — bulk-create entries for the logged-in
-// employee. Each row is matched against active projects + activity types by
-// code; unknown codes are skipped with a reason. Editable weeks only.
+// employee. Thin wrapper over `bulkCreateTimesheetEntries` (in
+// lib/timesheet/bulk-create.ts), which contains the actual validation +
+// upsert logic and is also reused by the public /api/v1/timesheet/entries
+// route.
 // -----------------------------------------------------------------------------
 export type TimesheetImportRow = {
   entry_date: string
@@ -523,209 +539,10 @@ export async function importTimesheetEntriesAction(
   rows: TimesheetImportRow[],
 ): Promise<{ created: number; skipped: Array<{ row: number; reason: string }> }> {
   const { employeeId } = await getCurrentEmployee()
-  const admin = createAdminClient()
-
-  const [projectsRes, activitiesRes] = await Promise.all([
-    admin.from('projects').select('id, code').eq('is_active', true),
-    admin.from('activity_types').select('id, code').eq('is_active', true),
-  ])
-  const projByCode = new Map((projectsRes.data ?? []).map((p) => [String(p.code).toUpperCase(), p.id as number]))
-  const actByCode = new Map((activitiesRes.data ?? []).map((a) => [String(a.code).toUpperCase(), a.id as number]))
-
-  // Pre-fetch week statuses to skip non-editable weeks fast.
-  const weekStartsToCheck = new Set<string>()
-  for (const r of rows) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(r.entry_date)) weekStartsToCheck.add(mondayOf(r.entry_date))
-  }
-  const { data: weekRows } = await admin
-    .from('timesheet_weeks')
-    .select('week_start, status')
-    .eq('employee_id', employeeId)
-    .in('week_start', Array.from(weekStartsToCheck))
-  const weekStatus = new Map((weekRows ?? []).map((w) => [w.week_start as string, w.status as string]))
-
-  const skipped: Array<{ row: number; reason: string }> = []
-
-  // -----------------------------------------------------------------------
-  // Pass 1 — validate every input row, aggregate by the unique-key tuple.
-  // The schema's unique index is on
-  //   (employee_id, entry_date, project_id, activity_type_id, coalesce(task,''), work_mode)
-  // so two CSV rows that share that tuple must collapse into one entry —
-  // we sum their hours. This also avoids the supabase upsert/onConflict
-  // mismatch (the JS client can't express index expressions like
-  // coalesce(task, '')); we use plain delete + insert instead.
-  // -----------------------------------------------------------------------
-  type Bucket = {
-    employeeId: string
-    entry_date: string
-    project_id: number
-    activity_type_id: number
-    task: string | null
-    work_mode: 'WFH' | 'WFO'
-    hours: number
-    description: string | null
-    startIso: string | null
-    endIso: string | null
-    sourceLines: number[]
-  }
-  const buckets = new Map<string, Bucket>()
-  const bucketKey = (date: string, p: number, a: number, task: string | null, mode: string) =>
-    `${date}|${p}|${a}|${task ?? ''}|${mode}`
-
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i]
-    const line = i + 1
-
-    if (!r.entry_date || !/^\d{4}-\d{2}-\d{2}$/.test(r.entry_date)) {
-      skipped.push({ row: line, reason: 'entry_date must be YYYY-MM-DD' })
-      continue
-    }
-    if (!r.project_code || !r.activity_code) {
-      skipped.push({ row: line, reason: 'project_code and activity_code are required' })
-      continue
-    }
-    const projectId = projByCode.get(String(r.project_code).toUpperCase())
-    if (!projectId) {
-      skipped.push({ row: line, reason: `Unknown project_code "${r.project_code}"` })
-      continue
-    }
-    const activityId = actByCode.get(String(r.activity_code).toUpperCase())
-    if (!activityId) {
-      skipped.push({ row: line, reason: `Unknown activity_code "${r.activity_code}"` })
-      continue
-    }
-
-    const weekStart = mondayOf(r.entry_date)
-    const wStatus = weekStatus.get(weekStart) ?? 'draft'
-    if (!isWeekEditable(wStatus)) {
-      skipped.push({ row: line, reason: `Week ${weekStart} is ${wStatus} — reopen first` })
-      continue
-    }
-
-    let workMode: 'WFH' | 'WFO' = 'WFO'
-    if (r.work_mode) {
-      const m = String(r.work_mode).toUpperCase()
-      if (m === 'WFH' || m === 'WFO') workMode = m
-      else {
-        skipped.push({ row: line, reason: `work_mode must be WFH or WFO (got "${r.work_mode}")` })
-        continue
-      }
-    }
-
-    let hours: number
-    let startIso: string | null = null
-    let endIso: string | null = null
-    const start = r.start_time?.toString().trim() || ''
-    const end = r.end_time?.toString().trim() || ''
-    if (start && end) {
-      if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) {
-        skipped.push({ row: line, reason: 'start_time / end_time must be HH:MM' })
-        continue
-      }
-      startIso = combineDateTime(r.entry_date, start)
-      endIso = combineDateTime(r.entry_date, end)
-      hours = deriveHours(startIso, endIso)
-      if (hours <= 0) {
-        skipped.push({ row: line, reason: 'end_time must be after start_time' })
-        continue
-      }
-    } else {
-      const raw = Number(r.hours ?? 0)
-      if (!Number.isFinite(raw) || raw <= 0 || raw > 24) {
-        skipped.push({ row: line, reason: `hours must be between 0 and 24 (got "${r.hours}")` })
-        continue
-      }
-      hours = quarterRound(raw)
-      if (start) startIso = combineDateTime(r.entry_date, start)
-      if (end) endIso = combineDateTime(r.entry_date, end)
-    }
-
-    const task = r.task && r.task.trim() !== '' ? r.task.trim() : null
-    const description = r.description?.trim() || null
-    const key = bucketKey(r.entry_date, projectId, activityId, task, workMode)
-    const existing = buckets.get(key)
-    if (existing) {
-      existing.hours = quarterRound(existing.hours + hours)
-      // Last-row-wins for description / time range — these aren't summable.
-      if (description) existing.description = description
-      if (startIso) existing.startIso = startIso
-      if (endIso) existing.endIso = endIso
-      existing.sourceLines.push(line)
-    } else {
-      buckets.set(key, {
-        employeeId,
-        entry_date: r.entry_date,
-        project_id: projectId,
-        activity_type_id: activityId,
-        task,
-        work_mode: workMode,
-        hours,
-        description,
-        startIso,
-        endIso,
-        sourceLines: [line],
-      })
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // Pass 2 — for each bucket, delete any conflicting row then insert. We
-  // can't rely on supabase upsert here because the unique index uses an
-  // expression (coalesce(task, '')) which the JS client can't target via
-  // onConflict. Delete + insert mirrors how saveWeekDraftAction writes a
-  // whole week.
-  // -----------------------------------------------------------------------
-  let created = 0
-  const touchedWeeks = new Set<string>()
-
-  for (const b of buckets.values()) {
-    const weekStart = mondayOf(b.entry_date)
-    await ensureWeekRow(admin, employeeId, weekStart)
-    touchedWeeks.add(weekStart)
-
-    // Delete any existing row matching the unique tuple.
-    let delQ = admin
-      .from('timesheet_entries')
-      .delete()
-      .eq('employee_id', employeeId)
-      .eq('entry_date', b.entry_date)
-      .eq('project_id', b.project_id)
-      .eq('activity_type_id', b.activity_type_id)
-      .eq('work_mode', b.work_mode)
-    delQ = b.task === null ? delQ.is('task', null) : delQ.eq('task', b.task)
-    const { error: delErr } = await delQ
-    if (delErr) {
-      for (const ln of b.sourceLines) skipped.push({ row: ln, reason: delErr.message })
-      continue
-    }
-
-    const { error: insErr } = await admin
-      .from('timesheet_entries')
-      .insert({
-        employee_id: b.employeeId,
-        project_id: b.project_id,
-        activity_type_id: b.activity_type_id,
-        entry_date: b.entry_date,
-        hours: b.hours,
-        task: b.task,
-        description: b.description,
-        work_mode: b.work_mode,
-        start_at: b.startIso,
-        end_at: b.endIso,
-        source: 'manual',
-      })
-    if (insErr) {
-      for (const ln of b.sourceLines) skipped.push({ row: ln, reason: insErr.message })
-      continue
-    }
-    created += b.sourceLines.length   // count every CSV row that contributed
-  }
-
-  // Recalc touched weeks.
-  for (const w of touchedWeeks) await recalcWeekTotal(admin, employeeId, w)
-
+  const { bulkCreateTimesheetEntries } = await import('@/lib/timesheet/bulk-create')
+  const res = await bulkCreateTimesheetEntries({ employeeId, rows })
   revalidatePath('/me/timesheet', 'layout')
-  return { created, skipped }
+  return { created: res.created, skipped: res.skipped }
 }
 
 // -----------------------------------------------------------------------------

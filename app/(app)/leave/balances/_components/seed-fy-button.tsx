@@ -3,15 +3,21 @@
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import { seedFyBalancesAction } from '@/lib/leave/actions'
 
 export function SeedFyButton({ fyStart, fyLabel }: { fyStart: string; fyLabel: string }) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
 
-  const onClick = () => {
-    if (!confirm(`Seed opening balances for FY ${fyLabel} for every active employee?`)) return
+  const onClick = async () => {
+    if (!await confirm({
+      title: `Seed opening balances — FY ${fyLabel}?`,
+      body: 'Adds rows for every active employee × paid leave type. Existing rows are left untouched.',
+      confirmLabel: 'Seed',
+    })) return
     startTransition(async () => {
       const fd = new FormData()
       fd.set('fy_start', fyStart)

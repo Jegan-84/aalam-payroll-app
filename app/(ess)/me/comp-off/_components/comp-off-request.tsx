@@ -13,17 +13,27 @@ type Req = {
   work_date: string
   days_requested: number
   reason: string | null
-  status: 'submitted' | 'approved' | 'rejected' | 'cancelled'
+  status: 'submitted' | 'manager_approved' | 'approved' | 'rejected' | 'cancelled'
   decided_at: string | null
   decision_note: string | null
+  manager_approved_at?: string | null
   created_at: string
 }
 
 const TONE: Record<Req['status'], string> = {
-  submitted: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-  approved:  'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
-  rejected:  'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200',
-  cancelled: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  submitted:        'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+  manager_approved: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+  approved:         'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
+  rejected:         'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200',
+  cancelled:        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+}
+
+const STATUS_LABEL: Record<Req['status'], string> = {
+  submitted:        'awaiting manager',
+  manager_approved: 'awaiting HR',
+  approved:         'approved',
+  rejected:         'rejected',
+  cancelled:        'cancelled',
 }
 
 export function MyCompOffRequest({ requests }: { requests: Req[] }) {
@@ -99,11 +109,11 @@ export function MyCompOffRequest({ requests }: { requests: Req[] }) {
                   <td className="px-3 py-2 text-right tabular-nums">{Number(r.days_requested).toFixed(1)}</td>
                   <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.reason ?? '—'}</td>
                   <td className="px-3 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TONE[r.status]}`}>{r.status}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TONE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
                     {r.decision_note && <span className="ml-2 text-[10px] text-slate-500">{r.decision_note}</span>}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {r.status === 'submitted' && (
+                    {(r.status === 'submitted' || r.status === 'manager_approved') && (
                       <button
                         type="button"
                         onClick={() => cancel(r.id)}

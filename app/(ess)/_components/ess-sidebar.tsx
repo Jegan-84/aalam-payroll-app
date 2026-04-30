@@ -18,6 +18,8 @@ function buildNav({ showApprovals }: { showApprovals?: boolean }): NavItem[] {
   ]
   if (showApprovals) {
     out.push({ href: '/me/timesheet/approvals', label: 'Team timesheets', icon: <IconCheckSquare /> })
+    out.push({ href: '/me/leave/approvals',     label: 'Team leave',      icon: <IconCheckSquare /> })
+    out.push({ href: '/me/comp-off/approvals',  label: 'Team comp-off',   icon: <IconCheckSquare /> })
   }
   out.push(
     { href: '/me/payslips',       label: 'Payslips',         icon: <IconReceipt /> },

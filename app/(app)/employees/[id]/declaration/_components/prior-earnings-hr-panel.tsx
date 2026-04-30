@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import {
   setVerificationAction,
   clearPriorEarningsAction,
@@ -30,6 +31,7 @@ type Props = {
 export function PriorEarningsHrPanel({ employeeId, fyStart, fyLabel, prior }: Props) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
 
   if (!prior) {
@@ -58,8 +60,13 @@ export function PriorEarningsHrPanel({ employeeId, fyStart, fyLabel, prior }: Pr
     })
   }
 
-  const clear = () => {
-    if (!confirm(`Delete the 12B record for FY ${fyLabel}? Use this if it was filed by mistake — the employee can re-submit.`)) return
+  const clear = async () => {
+    if (!await confirm({
+      title: `Delete the 12B record for FY ${fyLabel}?`,
+      body: 'Use this if it was filed by mistake — the employee can re-submit.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })) return
     const fd = new FormData()
     fd.set('employee_id', employeeId)
     fd.set('fy_start', fyStart)

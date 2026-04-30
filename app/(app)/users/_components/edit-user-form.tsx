@@ -1,6 +1,7 @@
 'use client'
 
 import { useBlockingActionState } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { resetPasswordAction, updateUserAction, deleteUserAction } from '@/lib/users/actions'
 import type { ResetPasswordState, UpdateUserState } from '@/lib/users/schemas'
 
@@ -19,6 +20,7 @@ type Props = {
 }
 
 export function EditUserForm({ user, roles, isSelf }: Props) {
+  const confirm = useConfirm()
   const [updState, updAction, updPending] = useBlockingActionState<UpdateUserState, FormData>(updateUserAction, undefined)
   const [pwdState, pwdAction, pwdPending] = useBlockingActionState<ResetPasswordState, FormData>(resetPasswordAction, undefined)
 
@@ -125,7 +127,17 @@ export function EditUserForm({ user, roles, isSelf }: Props) {
             </p>
             <button
               type="submit"
-              onClick={(e) => { if (!confirm(`Delete user ${user.email}? This cannot be undone.`)) e.preventDefault() }}
+              onClick={async (e) => {
+                e.preventDefault()
+                const button = e.currentTarget
+                const ok = await confirm({
+                  title: `Delete user ${user.email}?`,
+                  body: 'Removes sign-in access permanently. Historical audit references stay intact. This cannot be undone.',
+                  confirmLabel: 'Delete',
+                  tone: 'danger',
+                })
+                if (ok) button.form?.requestSubmit(button)
+              }}
               className="mt-3 inline-flex h-9 items-center rounded-md border border-red-400 bg-white px-4 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/60 dark:text-red-300"
             >
               Delete user

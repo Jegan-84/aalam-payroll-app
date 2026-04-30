@@ -174,11 +174,16 @@ export function computeMonthlyPayroll(input: MonthlyPayrollInput): MonthlyPayrol
   const convProrated  = Math.min(r0(basicProrated * convPct), r0(convCap * proration))
   const otherProrated = grossProrated - basicProrated - hraProrated - convProrated
 
+  // ESI is computed as a percentage of either gross or basic, controlled by
+  // the period's `esi_basis`. Eligibility (the wage-ceiling check) is always
+  // gross-driven.
+  const esiBase = input.statutory.esi_basis === 'basic' ? basicProrated : grossProrated
+
   // Employee deductions — from prorated figures
   const pfEe  = pfForMode(basicProrated, input.statutory, input.epfMode, true)
   const esiEe =
     grossProrated <= input.statutory.esi_wage_ceiling
-      ? r0(grossProrated * (input.statutory.esi_employee_percent / 100))
+      ? r0(esiBase * (input.statutory.esi_employee_percent / 100))
       : 0
   const pt = professionalTaxMonthly(grossProrated, input.ptSlabs, input.ptState)
 
@@ -227,7 +232,7 @@ export function computeMonthlyPayroll(input: MonthlyPayrollInput): MonthlyPayrol
   const pfEr  = pfForMode(basicProrated, input.statutory, input.epfMode, false)
   const esiEr =
     grossProrated <= input.statutory.esi_wage_ceiling
-      ? r0(grossProrated * (input.statutory.esi_employer_percent / 100))
+      ? r0(esiBase * (input.statutory.esi_employer_percent / 100))
       : 0
   const grat = r0(basicProrated * (input.statutory.gratuity_percent / 100))
   // Fixed employer benefits — NOT prorated

@@ -37,6 +37,7 @@ export const ROUTE_ROLES: Record<string, AdminRole[]> = {
 
   '/users':          ['admin'],
   '/settings':       ['admin'],
+  '/settings/approvals': ['admin', 'hr', 'payroll'],
   '/comp-off':       ['admin', 'hr'],
   '/docs':           ['admin', 'hr', 'payroll'],
   '/timesheet':      ['admin', 'hr', 'payroll'],

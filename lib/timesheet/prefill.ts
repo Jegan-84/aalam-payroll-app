@@ -171,14 +171,21 @@ export async function prefillLeaveAndHolidays(
       { onConflict: 'employee_id,week_start', ignoreDuplicates: true },
     )
 
+  // Plain insert — `existingKeys` already deduped in-memory above. We avoid
+  // upsert-with-onConflict here because the unique index uses an expression
+  // (coalesce(task, '')) that the JS client can't target via onConflict.
   const { error, count } = await admin
     .from('timesheet_entries')
-    .upsert(rowsToInsert, {
-      onConflict: 'employee_id,entry_date,project_id,activity_type_id,task,work_mode',
-      ignoreDuplicates: true,
-      count: 'exact',
-    })
-  if (error) throw new Error(error.message)
+    .insert(rowsToInsert, { count: 'exact' })
+  if (error) {
+    // Tolerate duplicate-key races (a parallel page-load could have inserted
+    // the same auto rows). The next render's existingKeys check will skip
+    // them; nothing else to do.
+    if (error.code === '23505' || /duplicate key/i.test(error.message)) {
+      return { inserted: 0 }
+    }
+    throw new Error(error.message)
+  }
 
   return { inserted: count ?? rowsToInsert.length }
 }

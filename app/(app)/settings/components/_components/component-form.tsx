@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { saveCustomComponentAction, deleteCustomComponentAction } from '@/lib/pay-components/actions'
 import { evalFormula, validateFormulaSyntax, ALLOWED_VARS } from '@/lib/payroll/formula'
 import type { CustomComponentRow } from '@/lib/pay-components/queries'
@@ -18,6 +19,7 @@ export function CustomComponentForm({
   defaults?: CustomComponentRow
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [err, setErr] = useState<string | null>(null)
 
@@ -75,9 +77,14 @@ export function CustomComponentForm({
     })
   }
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!defaults?.id) return
-    if (!confirm(`Delete custom component "${defaults.code}"? Existing payslips are unaffected; future cycles will skip it.`)) return
+    if (!await confirm({
+      title: `Delete custom component "${defaults.code}"?`,
+      body: 'Existing payslips are unaffected; future cycles will skip it.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })) return
     setErr(null)
     const fd = new FormData()
     fd.set('id', String(defaults.id))
