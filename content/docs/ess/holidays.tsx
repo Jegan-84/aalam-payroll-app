@@ -12,7 +12,7 @@ export default function Article() {
     <>
       <h2>Project-scoped calendars</h2>
       <p>
-        Holidays in PayFlow are tied to your <strong>primary project</strong>. Two engineers in the same
+        Holidays in PeopleStack are tied to your <strong>primary project</strong>. Two engineers in the same
         team but on different projects can have different holiday lists — for example, a US-client project
         may observe US federal holidays in addition to Indian public holidays.
       </p>

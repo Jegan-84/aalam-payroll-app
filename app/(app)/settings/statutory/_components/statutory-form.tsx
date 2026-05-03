@@ -15,6 +15,8 @@ type Config = {
   esi_employee_percent: number
   esi_employer_percent: number
   esi_wage_ceiling: number
+  /** Locked for the current period — display only. New basis can only be set when rolling a new period. */
+  esi_basis?: 'gross' | 'basic'
   gratuity_percent: number
   basic_percent_of_gross: number
   hra_percent_of_basic: number
@@ -36,7 +38,7 @@ export function StatutoryForm({ defaults }: { defaults: Config }) {
       const res = await saveStatutoryConfigAction(fd)
       if (res.error) setMsg({ kind: 'err', text: res.error })
       else {
-        setMsg({ kind: 'ok', text: 'Saved. Next payroll compute will pick up the new values.' })
+        setMsg({ kind: 'ok', text: 'Submitted for admin approval. Values take effect once an admin reviews and approves on /settings/approvals.' })
         router.refresh()
       }
     })
@@ -71,6 +73,15 @@ export function StatutoryForm({ defaults }: { defaults: Config }) {
         <Field name="esi_employee_percent" label="Employee contribution" suffix="%" step="0.01" min={0} max={100} defaultValue={defaults.esi_employee_percent} />
         <Field name="esi_employer_percent" label="Employer contribution" suffix="%" step="0.01" min={0} max={100} defaultValue={defaults.esi_employer_percent} />
         <Field name="esi_wage_ceiling" label="Wage ceiling (monthly gross)" suffix="₹" step="1" min={0} defaultValue={defaults.esi_wage_ceiling} />
+        <div className="flex flex-col">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Calculation basis</span>
+          <div className="mt-1 flex h-9 items-center gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
+            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              {(defaults.esi_basis ?? 'gross').toUpperCase()}
+            </span>
+            <span className="text-xs">Locked — change it when rolling a new period.</span>
+          </div>
+        </div>
       </Section>
 
       <Section title="Gratuity" note="Monthly accrual = this % × BASIC. Paid out at F&F after ≥5 years of service.">

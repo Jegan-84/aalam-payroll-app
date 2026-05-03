@@ -8,22 +8,37 @@ import { signOutAction } from '@/lib/auth/actions'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode }
 
-const NAV: NavItem[] = [
-  { href: '/me',                label: 'Overview',         icon: <IconHome /> },
-  { href: '/me/payslips',       label: 'Payslips',         icon: <IconReceipt /> },
-  { href: '/me/leave',          label: 'Leave',            icon: <IconSun /> },
-  { href: '/me/comp-off',       label: 'Comp Off',         icon: <IconSun /> },
-  { href: '/me/holidays',       label: 'Holidays',         icon: <IconSun /> },
-  { href: '/me/declaration',    label: 'Tax Declaration',  icon: <IconDoc /> },
-  { href: '/me/reimbursements', label: 'Reimbursements',   icon: <IconWallet /> },
-  { href: '/me/loans',          label: 'Loans',            icon: <IconBank /> },
-  { href: '/me/fnf',            label: 'F&F',              icon: <IconExit /> },
-  { href: '/me/profile',        label: 'Profile',          icon: <IconUser /> },
-  { href: '/me/docs',           label: 'Help',             icon: <IconHelp /> },
-]
+function buildNav({ showApprovals }: { showApprovals?: boolean }): NavItem[] {
+  const out: NavItem[] = [
+    { href: '/me',                label: 'Overview',         icon: <IconHome /> },
+    { href: '/me/attendance',     label: 'Attendance',       icon: <IconClock /> },
+    { href: '/me/timesheet',      label: 'Timesheet',        icon: <IconClock /> },
+    { href: '/me/timesheet/import', label: 'Import Timesheet', icon: <IconUpload /> },
+    { href: '/me/plan',           label: 'Monthly Plan',     icon: <IconCalendarDays /> },
+  ]
+  if (showApprovals) {
+    out.push({ href: '/me/timesheet/approvals', label: 'Team timesheets', icon: <IconCheckSquare /> })
+    out.push({ href: '/me/leave/approvals',     label: 'Team leave',      icon: <IconCheckSquare /> })
+    out.push({ href: '/me/comp-off/approvals',  label: 'Team comp-off',   icon: <IconCheckSquare /> })
+  }
+  out.push(
+    { href: '/me/payslips',       label: 'Payslips',         icon: <IconReceipt /> },
+    { href: '/me/leave',          label: 'Leave',            icon: <IconSun /> },
+    { href: '/me/comp-off',       label: 'Comp Off',         icon: <IconSun /> },
+    { href: '/me/holidays',       label: 'Holidays',         icon: <IconSun /> },
+    { href: '/me/declaration',    label: 'Tax Declaration',  icon: <IconDoc /> },
+    { href: '/me/reimbursements', label: 'Reimbursements',   icon: <IconWallet /> },
+    { href: '/me/loans',          label: 'Loans',            icon: <IconBank /> },
+    { href: '/me/fnf',            label: 'F&F',              icon: <IconExit /> },
+    { href: '/me/profile',        label: 'Profile',          icon: <IconUser /> },
+    { href: '/me/security',       label: 'Security',         icon: <IconShield /> },
+    { href: '/me/docs',           label: 'Help',             icon: <IconHelp /> },
+  )
+  return out
+}
 
-const STORAGE_KEY = 'payflow.ess_sidebar_collapsed'
-const SIDEBAR_EVENT = 'payflow:ess-sidebar-toggle'
+const STORAGE_KEY = 'peoplestack.ess_sidebar_collapsed'
+const SIDEBAR_EVENT = 'peoplestack:ess-sidebar-toggle'
 
 function subscribeSidebar(cb: () => void) {
   window.addEventListener(SIDEBAR_EVENT, cb)
@@ -40,9 +55,12 @@ function getServerSnapshot() {
   return false
 }
 
-export function EssSidebar({ email, fullName }: { email: string; fullName: string | null }) {
+export function EssSidebar({
+  email, fullName, showApprovals = false,
+}: { email: string; fullName: string | null; showApprovals?: boolean }) {
   const pathname = usePathname()
   const isCollapsed = React.useSyncExternalStore(subscribeSidebar, getSnapshot, getServerSnapshot)
+  const NAV = buildNav({ showApprovals })
 
   const toggle = () => {
     const next = !isCollapsed
@@ -67,7 +85,7 @@ export function EssSidebar({ email, fullName }: { email: string; fullName: strin
         </div>
         {!isCollapsed && (
           <div className="leading-tight">
-            <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">PayFlow</div>
+            <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">PeopleStack</div>
             <div className="text-[10px] font-medium uppercase tracking-wide text-brand-600">Employee Portal</div>
           </div>
         )}
@@ -132,7 +150,7 @@ export function EssSidebar({ email, fullName }: { email: string; fullName: strin
             className={[
               'flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900',
               'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
-              isCollapsed ? 'h-9 w-9' : 'h-9 flex-1 gap-1.5 px-3 text-xs font-medium',
+              isCollapsed ? 'h-9 w-9' : 'h-9 flex-1 gap-1.5 whitespace-nowrap px-3 text-xs font-medium',
             ].join(' ')}
           >
             {isCollapsed ? <IconChevronRight /> : (<><IconChevronLeft /><span>Collapse</span></>)}
@@ -145,7 +163,7 @@ export function EssSidebar({ email, fullName }: { email: string; fullName: strin
               className={[
                 'flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700',
                 'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-red-900 dark:hover:bg-red-950/40 dark:hover:text-red-400',
-                isCollapsed ? 'h-9 w-9' : 'h-9 w-full gap-1.5 px-3 text-xs font-medium',
+                isCollapsed ? 'h-9 w-9' : 'h-9 w-full gap-1.5 whitespace-nowrap px-3 text-xs font-medium',
               ].join(' ')}
             >
               <IconLogOut />
@@ -174,8 +192,13 @@ function IconDoc()          { return <svg {...iconProps}><path d="M14 3H6a2 2 0 
 function IconBank()         { return <svg {...iconProps}><path d="M3 10 12 4l9 6"/><path d="M5 10v8"/><path d="M19 10v8"/><path d="M9 14v4"/><path d="M15 14v4"/><path d="M3 20h18"/></svg> }
 function IconExit()         { return <svg {...iconProps}><path d="M9 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9"/><path d="m14 17-5-5 5-5"/><path d="M9 12h10"/></svg> }
 function IconUser()         { return <svg {...iconProps}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> }
+function IconShield()       { return <svg {...iconProps}><path d="M12 3 4 6v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V6Z"/></svg> }
 function IconWallet()       { return <svg {...iconProps}><path d="M3 7h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 7V5a2 2 0 0 1 2-2h12"/><circle cx="16" cy="13" r="1.5"/></svg> }
 function IconLogOut()       { return <svg {...iconProps}><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17-5-5 5-5"/><path d="M15 12H5"/></svg> }
 function IconHelp()         { return <svg {...iconProps}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> }
 function IconChevronLeft()  { return <svg {...iconProps} width={14} height={14}><path d="m15 18-6-6 6-6"/></svg> }
 function IconChevronRight() { return <svg {...iconProps} width={14} height={14}><path d="m9 18 6-6-6-6"/></svg> }
+function IconClock()        { return <svg {...iconProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> }
+function IconCheckSquare()  { return <svg {...iconProps}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m8 12 3 3 5-7"/></svg> }
+function IconUpload()       { return <svg {...iconProps}><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/></svg> }
+function IconCalendarDays() { return <svg {...iconProps}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/><circle cx="8" cy="14.5" r="0.5"/><circle cx="12" cy="14.5" r="0.5"/><circle cx="16" cy="14.5" r="0.5"/></svg> }

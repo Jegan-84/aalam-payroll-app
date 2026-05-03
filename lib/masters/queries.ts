@@ -38,3 +38,21 @@ export async function listProjects(opts?: { activeOnly?: boolean }): Promise<Pro
   if (error) throw new Error(error.message)
   return (data ?? []) as unknown as ProjectRow[]
 }
+
+export type ActivityTypeRow = {
+  id: number
+  code: string
+  name: string
+  is_active: boolean
+  display_order: number
+  created_at: string
+}
+
+export async function listActivityTypes(opts?: { activeOnly?: boolean }): Promise<ActivityTypeRow[]> {
+  const supabase = await createClient()
+  let q = supabase.from('activity_types').select('*').order('display_order').order('name')
+  if (opts?.activeOnly) q = q.eq('is_active', true)
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as ActivityTypeRow[]
+}

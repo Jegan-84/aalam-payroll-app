@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { uploadPoiAction, deletePoiAction } from '@/lib/poi/actions'
 import type { PoiDocumentRow, PoiSection } from '@/lib/poi/queries'
 
@@ -39,6 +40,7 @@ export function PoiPanel({
   docs: PoiDocumentRow[]
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const formRef = useRef<HTMLFormElement | null>(null)
@@ -59,8 +61,13 @@ export function PoiPanel({
     })
   }
 
-  const onDelete = (id: string) => {
-    if (!confirm('Delete this proof?')) return
+  const onDelete = async (id: string) => {
+    if (!await confirm({
+      title: 'Delete this proof?',
+      body: 'You can re-upload it later if needed.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })) return
     setMsg(null)
     const fd = new FormData()
     fd.set('id', id)

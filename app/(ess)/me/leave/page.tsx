@@ -111,11 +111,28 @@ export default async function MyLeavePage() {
                   <Td><Badge tone="brand">{r.leave_type.code}</Badge></Td>
                   <Td className="tabular-nums">{r.from_date}</Td>
                   <Td className="tabular-nums">{r.to_date}</Td>
-                  <Td className="text-right tabular-nums">{Number(r.days_count).toFixed(1)}</Td>
+                  <Td className="text-right">
+                    <span className="tabular-nums">{Number(r.days_count).toFixed(1)}</span>
+                    {r.is_half_day && (
+                      <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                        ½ day
+                      </span>
+                    )}
+                  </Td>
                   <Td className="text-xs text-slate-500">{new Date(r.applied_at).toLocaleDateString('en-IN', { dateStyle: 'medium' })}</Td>
                   <Td><Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge></Td>
                   <Td>
-                    <span className="text-xs text-slate-500">{r.reason ?? '—'}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-slate-500">{r.reason ?? '—'}</span>
+                      {(r.status === 'rejected' || r.status === 'cancelled') && (
+                        <Link
+                          href={`/me/leave/new?from_application=${r.id}`}
+                          className="shrink-0 text-[11px] font-medium text-brand-700 hover:underline dark:text-brand-400"
+                        >
+                          Re-apply →
+                        </Link>
+                      )}
+                    </div>
                   </Td>
                 </tr>
               ))}

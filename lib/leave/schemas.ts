@@ -12,9 +12,16 @@ export const ApplyLeaveSchema = z
     leave_type_id: z.coerce.number().int().positive(),
     from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'From date required.'),
     to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'To date required.'),
+    is_half_day: z
+      .preprocess((v) => v === 'on' || v === 'true' || v === true, z.boolean())
+      .default(false),
     reason: optStr(),
   })
   .refine((v) => v.to_date >= v.from_date, { path: ['to_date'], message: 'To date must be after From.' })
+  .refine((v) => !v.is_half_day || v.from_date === v.to_date, {
+    path: ['is_half_day'],
+    message: 'Half-day applies only to a single date — from and to must match.',
+  })
 
 export type ApplyLeaveInput = z.infer<typeof ApplyLeaveSchema>
 

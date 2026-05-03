@@ -14,6 +14,7 @@ const cards = [
   { href: '/settings/components',  title: 'Custom pay components', desc: 'HR-defined earnings / deductions with fixed, %, or formula calculation. Added on top of statutory components.' },
   { href: '/settings/statutory',   title: 'Statutory configuration', desc: 'BASIC / HRA / Conveyance rates, PF, ESI, and Gratuity percentages. Drives every new payslip.' },
   { href: '/settings/leave-policies', title: 'Leave policies',  desc: 'Per-type accrual, carry-forward, and balance caps. Run monthly accrual from here.' },
+  { href: '/settings/activity-types', title: 'Activity types',  desc: 'Categories used by the timesheet module — Development, Bug fix, Meeting, etc.' },
   { href: '/users',                title: 'Users & roles',    desc: 'Invite users, assign admin/HR/payroll/employee roles, reset passwords, deactivate.' },
 ]
 

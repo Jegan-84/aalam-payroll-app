@@ -2,8 +2,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getTemplate } from '@/lib/salary-templates/queries'
-import { deleteTemplateAction, updateTemplateAction } from '@/lib/salary-templates/actions'
+import { updateTemplateAction } from '@/lib/salary-templates/actions'
 import { TemplateForm } from '../_components/template-form'
+import { MarkInactiveButton } from './_components/mark-inactive-button'
 
 type PP = Promise<{ id: string }>
 
@@ -35,18 +36,7 @@ export default async function EditTemplatePage({ params }: { params: PP }) {
             {t.name} <span className="text-base font-normal text-slate-500">({t.code})</span>
           </h1>
         </div>
-        <form action={deleteTemplateAction}>
-          <input type="hidden" name="id" value={id} />
-          <button
-            type="submit"
-            onClick={(e) => {
-              if (!confirm('Mark this template inactive? Existing salary structures are unaffected.')) e.preventDefault()
-            }}
-            className="inline-flex h-9 items-center rounded-md border border-red-300 bg-red-50 px-4 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
-          >
-            Mark inactive
-          </button>
-        </form>
+        <MarkInactiveButton id={id} />
       </div>
       <TemplateForm
         mode="edit"

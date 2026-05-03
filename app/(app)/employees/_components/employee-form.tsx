@@ -95,6 +95,7 @@ function toDefaultValues(d: Defaults): EmployeeFormValues {
     uan_number: s('uan_number'),
     esi_number: s('esi_number'),
     passport_number: s('passport_number'),
+    biometric_id: s('biometric_id'),
 
     company_id:     d.company_id == null ? undefined : String(d.company_id),
     department_id:  d.department_id  == null || d.department_id  === '' ? undefined : Number(d.department_id),
@@ -364,6 +365,9 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
             <Field label="Passport number" error={err('passport_number')}>
               <Input {...register('passport_number')} />
             </Field>
+            <Field label="Biometric ID" error={err('biometric_id')} hint="Punch / attendance device ID. Used by attendance integrations.">
+              <Input {...register('biometric_id')} placeholder="e.g. BIO-1042" />
+            </Field>
           </Grid>
         </Section>
 
@@ -521,7 +525,7 @@ export function EmployeeForm({ mode, action, masters, defaults = {}, cancelHref 
           <button
             type="submit"
             disabled={pending}
-            className="inline-flex h-9 items-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+            className="inline-flex h-9 items-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? 'Saving…' : mode === 'create' ? 'Create employee' : 'Save changes'}
           </button>

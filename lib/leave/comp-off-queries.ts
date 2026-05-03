@@ -46,16 +46,21 @@ export async function countActiveCompOff(employeeId: string): Promise<number> {
   return (data ?? []).reduce((s, r) => s + Number(r.granted_days), 0)
 }
 
+export type CompOffRequestStatus = 'submitted' | 'manager_approved' | 'approved' | 'rejected' | 'cancelled'
+
 export type CompOffRequest = {
   id: string
   employee_id: string
   work_date: string
   days_requested: number
   reason: string | null
-  status: 'submitted' | 'approved' | 'rejected' | 'cancelled'
+  status: CompOffRequestStatus
   decided_by: string | null
   decided_at: string | null
   decision_note: string | null
+  manager_approved_at: string | null
+  manager_approved_by: string | null
+  manager_decision_note: string | null
   grant_id: string | null
   created_at: string
 }
@@ -77,7 +82,21 @@ export async function listMyCompOffRequests(employeeId: string): Promise<CompOff
   return (data ?? []) as unknown as CompOffRequest[]
 }
 
+/** HR queue — manager-approved requests awaiting HR final review. */
 export async function listPendingCompOffRequests(): Promise<CompOffRequestWithEmployee[]> {
+  await verifySession()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('comp_off_requests')
+    .select('*, employee:employees!inner(id, employee_code, full_name_snapshot)')
+    .eq('status', 'manager_approved')
+    .order('manager_approved_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as CompOffRequestWithEmployee[]
+}
+
+/** Stage-1 queue — submitted requests awaiting reporting-manager review (admin view of org-wide pending). */
+export async function listSubmittedCompOffRequests(): Promise<CompOffRequestWithEmployee[]> {
   await verifySession()
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -87,6 +106,42 @@ export async function listPendingCompOffRequests(): Promise<CompOffRequestWithEm
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
   return (data ?? []) as unknown as CompOffRequestWithEmployee[]
+}
+
+/**
+ * Manager queue — requests for the calling user's direct reports that are still
+ * awaiting their stage-1 approval (status='submitted'). Returns [] if the
+ * caller has no reports or no employee record.
+ */
+export async function listMyTeamPendingCompOff(): Promise<CompOffRequestWithEmployee[]> {
+  await verifySession()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: meEmp } = await supabase
+    .from('employees').select('id').eq('user_id', user.id).maybeSingle()
+  let myEmpId = meEmp?.id as string | undefined
+  if (!myEmpId && user.email) {
+    const { data: byEmail } = await supabase
+      .from('employees').select('id').eq('work_email', user.email).maybeSingle()
+    myEmpId = byEmail?.id as string | undefined
+  }
+  if (!myEmpId) return []
+
+  const { data, error } = await supabase
+    .from('comp_off_requests')
+    .select('*, employee:employees!inner(id, employee_code, full_name_snapshot, reports_to)')
+    .eq('status', 'submitted')
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+
+  type Row = CompOffRequestWithEmployee & {
+    employee: { id: string; employee_code: string; full_name_snapshot: string; reports_to: string | null }
+  }
+  return ((data ?? []) as unknown as Row[])
+    .filter((r) => r.employee.reports_to === myEmpId)
+    .map((r) => ({ ...r, employee: { id: r.employee.id, employee_code: r.employee.employee_code, full_name_snapshot: r.employee.full_name_snapshot } }))
 }
 
 export async function listRecentCompOffRequests(

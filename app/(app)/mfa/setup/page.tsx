@@ -19,7 +19,7 @@ export default async function MfaSetupPage() {
     <div className="max-w-3xl space-y-6">
       <PageHeader
         title="Two-step verification"
-        subtitle="Add an authenticator app to protect your PayFlow account with a 6-digit code."
+        subtitle="Add an authenticator app to protect your PeopleStack account with a 6-digit code."
       />
       <Card>
         <CardBody>

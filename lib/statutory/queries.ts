@@ -18,6 +18,8 @@ export type StatutoryPeriodRow = {
   esi_employee_percent: number
   esi_employer_percent: number
   esi_wage_ceiling: number
+  /** Locked once the period is created. 'gross' (default) or 'basic'. */
+  esi_basis: 'gross' | 'basic'
   gratuity_percent: number
   created_at: string
 }
@@ -54,6 +56,7 @@ export async function listStatutoryPeriods(): Promise<StatutoryPeriodRow[]> {
       esi_employee_percent: Number(r.esi_employee_percent),
       esi_employer_percent: Number(r.esi_employer_percent),
       esi_wage_ceiling: Number(r.esi_wage_ceiling),
+      esi_basis: ((r.esi_basis as string | null) === 'basic' ? 'basic' : 'gross'),
       gratuity_percent: Number(r.gratuity_percent),
       created_at: r.created_at as string,
     }

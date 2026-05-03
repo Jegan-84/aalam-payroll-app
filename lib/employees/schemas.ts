@@ -78,6 +78,7 @@ export const EmployeeSchema = z
     uan_number: optStr(),
     esi_number: optStr(),
     passport_number: optStr(),
+    biometric_id: optStr(),
 
     // employment
     company_id:     z.preprocess(EMPTY_TO_UNDEF, z.string().uuid().optional()),

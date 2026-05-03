@@ -25,8 +25,8 @@ export function ExternalImportCard({
   const snack = useSnackbar()
   const [pending, startTransition] = useBlockingTransition()
 
-  const firstAvailable = providers.find((p) => p.available)?.id ?? 'nager'
-  const [provider, setProvider] = useState(firstAvailable)
+  // Only one provider remains (Calendarific). Lock to it.
+  const provider = 'calendarific' as const
   const [country, setCountry] = useState('IN')
   const [year, setYear] = useState(defaultYear)
   const [region, setRegion] = useState('')
@@ -105,42 +105,29 @@ export function ExternalImportCard({
       </div>
 
       <form onSubmit={fetchPreview} className="space-y-3">
-        {/* Provider radio */}
-        <div className="grid gap-2 sm:grid-cols-2">
-          {providers.map((p) => (
-            <label
-              key={p.id}
-              className={`cursor-pointer rounded-md border p-3 text-sm transition-colors ${
-                provider === p.id
-                  ? 'border-brand-500 bg-brand-50/50 dark:border-brand-700 dark:bg-brand-950/30'
-                  : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
-              } ${p.available ? '' : 'opacity-60'}`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="provider"
-                    value={p.id}
-                    checked={provider === p.id}
-                    onChange={() => setProvider(p.id)}
-                    disabled={!p.available}
-                  />
-                  <span className="font-medium">{p.label}</span>
+        <input type="hidden" name="provider" value={provider} />
+        {providerInfo && (
+          <div
+            className={`rounded-md border p-3 text-sm ${
+              providerInfo.available
+                ? 'border-brand-500 bg-brand-50/50 dark:border-brand-700 dark:bg-brand-950/30'
+                : 'border-slate-200 opacity-80 dark:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{providerInfo.label}</span>
+              {!providerInfo.available && (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-800">
+                  disabled
                 </span>
-                {!p.available && (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-800">
-                    disabled
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
-                {p.helper}
-                {!p.available && p.unavailableReason ? ` · ${p.unavailableReason}` : ''}
-              </p>
-            </label>
-          ))}
-        </div>
+              )}
+            </div>
+            <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+              {providerInfo.helper}
+              {!providerInfo.available && providerInfo.unavailableReason ? ` · ${providerInfo.unavailableReason}` : ''}
+            </p>
+          </div>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <LabeledField label="Country (ISO 2)">

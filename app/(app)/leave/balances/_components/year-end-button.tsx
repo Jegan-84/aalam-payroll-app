@@ -4,16 +4,22 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import { runYearEndConversionAction } from '@/lib/leave/year-end'
 
 export function YearEndButton({ currentYear }: { currentYear: number }) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [year, setYear] = useState(currentYear - 1)
 
-  const run = () => {
-    if (!confirm(`Run year-end conversion for ${year}? This closes PL balances, transfers up to 6 days to EL where needed, and queues the remaining PL as leave encashment on the next payslip. Safe to re-run — duplicate employees are upserted.`)) return
+  const run = async () => {
+    if (!await confirm({
+      title: `Run year-end conversion for ${year}?`,
+      body: 'Closes PL balances, transfers up to 6 days to EL where needed, and queues the remaining PL as leave encashment on the next payslip. Safe to re-run — duplicate employees are upserted.',
+      confirmLabel: 'Run year-end',
+    })) return
     const fd = new FormData()
     fd.set('leave_year', String(year))
     startTransition(async () => {

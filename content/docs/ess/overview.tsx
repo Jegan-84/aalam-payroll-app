@@ -2,7 +2,7 @@ import type { DocMeta } from '@/components/docs/doc-layout'
 
 export const meta: DocMeta = {
   slug: 'overview',
-  title: 'Welcome to PayFlow',
+  title: 'Welcome to PeopleStack',
   summary: 'A 60-second tour of the employee portal — what you can do here, and where to find it.',
   group: 'Getting started',
 }
@@ -10,9 +10,9 @@ export const meta: DocMeta = {
 export default function Article() {
   return (
     <>
-      <h2>What is PayFlow?</h2>
+      <h2>What is PeopleStack?</h2>
       <p>
-        PayFlow is Aalam&apos;s in-house payroll system. The pages you see at <code>/me/*</code> are
+        PeopleStack is Aalam&apos;s in-house payroll system. The pages you see at <code>/me/*</code> are
         the <em>Employee Self-Service</em> portal. From here you handle anything to do with your
         own pay, leave, and tax — without emailing HR.
       </p>
@@ -20,7 +20,9 @@ export default function Article() {
       <h2>What you can do</h2>
       <ul>
         <li><strong>Payslips</strong> — download every month&apos;s payslip as PDF.</li>
-        <li><strong>Leave</strong> — see your balances, apply for leave, track approvals.</li>
+        <li><strong>Leave</strong> — see your balances, apply for leave (full or half-day), track approvals.</li>
+        <li><strong>Monthly Plan</strong> — calendar view to mark WFH / planned leaves, so your team can plan coverage.</li>
+        <li><strong>Timesheet</strong> — log your weekly hours per project / activity; submit for approval. Bulk-import from CSV for older weeks.</li>
         <li><strong>Comp Off</strong> — request comp off for a holiday/weekend you worked, with HR approval.</li>
         <li><strong>Holidays</strong> — see the holiday calendar that applies to your project.</li>
         <li><strong>Tax Declaration</strong> — declare your investments and rent so the right TDS gets cut every month.</li>
@@ -28,6 +30,11 @@ export default function Article() {
         <li><strong>Loans</strong> — view active loans, EMI schedule, and outstanding principal.</li>
         <li><strong>Profile</strong> — bank details, PAN, address, emergency contact.</li>
       </ul>
+      <p>
+        If you also have an admin / HR / payroll role, the same <code>/me/*</code> pages are available to
+        you via the <em>&quot;My Self-Service&quot;</em> group in the admin sidebar. You file your own
+        timesheet, leave, and plan exactly the way every other employee does.
+      </p>
 
       <h2>How approvals work</h2>
       <p>

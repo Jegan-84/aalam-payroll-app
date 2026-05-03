@@ -34,11 +34,20 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
-    heading: 'Tax & Reports',
+    heading: 'Tax',
     items: [
       { href: '/declarations', label: 'Tax Declarations',  icon: <IconDoc /> },
       { href: '/tds',          label: 'TDS & Form 16',     icon: <IconReceipt /> },
-      { href: '/reports',      label: 'Statutory Reports', icon: <IconFolder /> },
+    ],
+  },
+  {
+    heading: 'Reports',
+    items: [
+      { href: '/timesheet/reports',         label: 'Timesheet — Hours',     icon: <IconChartBar /> },
+      { href: '/timesheet/daily-grid',      label: 'Timesheet — Daily Grid', icon: <IconCalendarDays /> },
+      { href: '/timesheet/reconciliation',  label: 'Timesheet × Leave',     icon: <IconChartBar /> },
+      { href: '/leave/plan-report',         label: 'Monthly Plans',         icon: <IconCalendarDays /> },
+      { href: '/reports',                   label: 'Statutory Reports',     icon: <IconFolder /> },
     ],
   },
   {
@@ -46,13 +55,28 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: '/users',    label: 'Users',    icon: <IconShield /> },
       { href: '/settings', label: 'Settings', icon: <IconGear /> },
+      { href: '/settings/approvals', label: 'Config Approvals', icon: <IconCheckSquare />, sub: true },
+      { href: '/settings/api-keys',  label: 'API Keys',         icon: <IconKey />, sub: true },
       { href: '/docs',     label: 'Help',     icon: <IconHelp /> },
     ],
   },
 ]
 
-const STORAGE_KEY = 'payflow.sidebar_collapsed'
-const SIDEBAR_EVENT = 'payflow:sidebar-toggle'
+// Shown to admin/HR/payroll users who are ALSO employees of the org. Lets
+// them file their own timesheet / leave / plan without switching accounts.
+const ESS_GROUP: NavGroup = {
+  heading: 'My Self-Service',
+  items: [
+    { href: '/me',           label: 'My Overview',     icon: <IconUser /> },
+    { href: '/me/timesheet', label: 'My Timesheet',    icon: <IconClock /> },
+    { href: '/me/leave',     label: 'My Leave',        icon: <IconSun /> },
+    { href: '/me/plan',      label: 'My Monthly Plan', icon: <IconCalendarDays /> },
+    { href: '/me/payslips',  label: 'My Payslips',     icon: <IconReceipt />, sub: true },
+  ],
+}
+
+const STORAGE_KEY = 'peoplestack.sidebar_collapsed'
+const SIDEBAR_EVENT = 'peoplestack:sidebar-toggle'
 
 function subscribeSidebar(cb: () => void) {
   window.addEventListener(SIDEBAR_EVENT, cb)
@@ -69,11 +93,19 @@ function getSidebarServerSnapshot() {
   return false
 }
 
-export function Sidebar({ email, fullName, roles }: { email: string; fullName: string | null; roles: string[] }) {
+export function Sidebar({
+  email, fullName, roles, hasEmployeeRecord = false,
+}: {
+  email: string
+  fullName: string | null
+  roles: string[]
+  hasEmployeeRecord?: boolean
+}) {
   const pathname = usePathname()
 
   // Filter nav items by the user's roles so HR never sees Payroll-only items and vice versa.
-  const visibleGroups: NavGroup[] = GROUPS
+  const baseGroups = hasEmployeeRecord ? [...GROUPS, ESS_GROUP] : GROUPS
+  const visibleGroups: NavGroup[] = baseGroups
     .map((g) => ({
       ...g,
       items: g.items.filter((i) => canAccess(i.href, roles)),
@@ -104,7 +136,7 @@ export function Sidebar({ email, fullName, roles }: { email: string; fullName: s
         </div>
         {!isCollapsed && (
           <div className="leading-tight">
-            <div className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">PayFlow</div>
+            <div className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">PeopleStack</div>
             <div className="text-[11px] font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">Aalam</div>
           </div>
         )}
@@ -180,7 +212,7 @@ export function Sidebar({ email, fullName, roles }: { email: string; fullName: s
             className={[
               'flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900',
               'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
-              isCollapsed ? 'h-9 w-9' : 'h-9 flex-1 gap-1.5 px-3 text-xs font-medium',
+              isCollapsed ? 'h-9 w-9' : 'h-9 flex-1 gap-1.5 whitespace-nowrap px-3 text-xs font-medium',
             ].join(' ')}
           >
             {isCollapsed ? <IconChevronRight /> : (<><IconChevronLeft /><span>Collapse</span></>)}
@@ -193,7 +225,7 @@ export function Sidebar({ email, fullName, roles }: { email: string; fullName: s
               className={[
                 'flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700',
                 'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-red-900 dark:hover:bg-red-950/40 dark:hover:text-red-400',
-                isCollapsed ? 'h-9 w-9' : 'h-9 w-full gap-1.5 px-3 text-xs font-medium',
+                isCollapsed ? 'h-9 w-9' : 'h-9 w-full gap-1.5 whitespace-nowrap px-3 text-xs font-medium',
               ].join(' ')}
             >
               <IconLogOut />
@@ -242,3 +274,9 @@ function IconBank()         { return <svg {...iconProps}><path d="M3 10 12 4l9 6
 function IconChevronLeft()  { return <svg {...iconProps}><path d="m15 18-6-6 6-6"/></svg> }
 function IconChevronRight() { return <svg {...iconProps}><path d="m9 18 6-6-6-6"/></svg> }
 function IconHelp()         { return <svg {...iconProps}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> }
+function IconChartBar()     { return <svg {...iconProps}><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg> }
+function IconUser()         { return <svg {...iconProps}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> }
+function IconClock()        { return <svg {...iconProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> }
+function IconCalendarDays() { return <svg {...iconProps}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/><circle cx="8" cy="14.5" r="0.5"/><circle cx="12" cy="14.5" r="0.5"/><circle cx="16" cy="14.5" r="0.5"/></svg> }
+function IconCheckSquare()  { return <svg {...iconProps}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m8 12 3 3 5-7"/></svg> }
+function IconKey()          { return <svg {...iconProps}><circle cx="8" cy="15" r="4"/><path d="m10 12 9-9 3 3-3 3 2 2-2 2-2-2-3 3"/></svg> }

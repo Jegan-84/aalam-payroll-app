@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 
 export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error('[PayFlow] Unhandled error:', error)
+    console.error('[PeopleStack] Unhandled error:', error)
   }, [error])
 
   return (

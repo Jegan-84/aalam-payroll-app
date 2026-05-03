@@ -15,8 +15,10 @@ export default function Article() {
         <li><strong>Employees</strong> — onboarding, edits, employment-type conversions, exits.</li>
         <li><strong>Salary structures &amp; templates</strong> — gross-to-component split per employee.</li>
         <li><strong>Attendance</strong> — daily attendance grid; LEAVE / LOP / HOLIDAY cells.</li>
-        <li><strong>Leave</strong> + <strong>Leave Balances</strong> — applications, approvals, balances, year-end.</li>
+        <li><strong>Leave</strong> + <strong>Leave Balances</strong> — applications (incl. half-day), approvals, balances, year-end.</li>
+        <li><strong>Monthly Plans</strong> — per-employee WFH / leave intent calendar with an admin coverage report.</li>
         <li><strong>Comp Off</strong> — the request approval queue.</li>
+        <li><strong>Timesheet</strong> — per-project / employee / activity reports plus the leave-vs-timesheet reconciliation.</li>
         <li><strong>Payroll</strong> — monthly cycles: compute → review → approve.</li>
         <li><strong>Loans</strong>, <strong>Reimbursements</strong>, <strong>F&amp;F</strong> — feed the payroll cycle.</li>
         <li><strong>Tax Declarations</strong>, <strong>TDS &amp; Form 16</strong> — annual tax compliance.</li>
@@ -57,6 +59,14 @@ export default function Article() {
           <tr><td><code>employee</code></td><td>ESS only — <code>/me/*</code>.</td></tr>
         </tbody>
       </table>
+      <p>
+        Admin / HR / payroll users who are <strong>also employees</strong> of the org get a
+        <em> &quot;My Self-Service&quot;</em> group in the sidebar with shortcuts to <code>/me/timesheet</code>,
+        <code> /me/leave</code>, <code>/me/plan</code>, and <code>/me/payslips</code>. They can file their
+        own timesheet, leave applications, and monthly plan without switching accounts. The links only
+        appear if the signed-in user has an employee record (matched by <code>user_id</code> or
+        <code> work_email</code>).
+      </p>
     </>
   )
 }

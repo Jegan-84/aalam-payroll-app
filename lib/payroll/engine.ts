@@ -37,14 +37,25 @@ function pfEmployer(basicMonthly: number, cfg: StatutoryConfig, mode: CalcInput[
   }
 }
 
-function esiEmployeeMonthly(grossMonthly: number, cfg: StatutoryConfig): number {
-  if (grossMonthly > cfg.esi_wage_ceiling) return 0
-  return round0((cfg.esi_employee_percent / 100) * grossMonthly)
+// ESI eligibility is always tested against monthly gross (the wage-ceiling
+// rule). The contribution amount is then computed as a % of either gross or
+// Basic, depending on the period's `esi_basis` setting.
+function esiBaseAmount(
+  grossMonthly: number,
+  basicMonthly: number,
+  cfg: StatutoryConfig,
+): number {
+  return cfg.esi_basis === 'basic' ? basicMonthly : grossMonthly
 }
 
-function esiEmployerMonthly(grossMonthly: number, cfg: StatutoryConfig): number {
+function esiEmployeeMonthly(grossMonthly: number, basicMonthly: number, cfg: StatutoryConfig): number {
   if (grossMonthly > cfg.esi_wage_ceiling) return 0
-  return round0((cfg.esi_employer_percent / 100) * grossMonthly)
+  return round0((cfg.esi_employee_percent / 100) * esiBaseAmount(grossMonthly, basicMonthly, cfg))
+}
+
+function esiEmployerMonthly(grossMonthly: number, basicMonthly: number, cfg: StatutoryConfig): number {
+  if (grossMonthly > cfg.esi_wage_ceiling) return 0
+  return round0((cfg.esi_employer_percent / 100) * esiBaseAmount(grossMonthly, basicMonthly, cfg))
 }
 
 function gratuityMonthly(basicMonthly: number, cfg: StatutoryConfig): number {
@@ -99,7 +110,7 @@ function solveGross(input: CalcInput): { annualGross: number; iterations: number
     const basicMonthly = monthlyGross * (statutory.basic_percent_of_gross / 100)
 
     const pfEr = pfEmployer(basicMonthly, statutory, epfMode)
-    const esiEr = esiEmployerMonthly(monthlyGross, statutory)
+    const esiEr = esiEmployerMonthly(monthlyGross, basicMonthly, statutory)
     const grat  = gratuityMonthly(basicMonthly, statutory)
 
     const monthlyRetirals = pfEr + esiEr + grat + medicalInsuranceMonthly
@@ -137,12 +148,12 @@ export function computeSalaryStructure(input: CalcInput): CalcOutput {
 
   // Employee deductions
   const pfEeMonthly  = pfEmployee(basicMonthly, statutory, input.epfMode)
-  const esiEeMonthly = esiEmployeeMonthly(monthlyGross, statutory)
+  const esiEeMonthly = esiEmployeeMonthly(monthlyGross, basicMonthly, statutory)
   const ptMonthly    = professionalTaxMonthly(monthlyGross, ptSlabs, ptState)
 
   // Employer retirals
   const pfErMonthly  = pfEmployer(basicMonthly, statutory, input.epfMode)
-  const esiErMonthly = esiEmployerMonthly(monthlyGross, statutory)
+  const esiErMonthly = esiEmployerMonthly(monthlyGross, basicMonthly, statutory)
   const gratMonthly  = gratuityMonthly(basicMonthly, statutory)
 
   // Variable pay is annual, typically paid separately

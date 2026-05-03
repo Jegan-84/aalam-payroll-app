@@ -16,6 +16,7 @@
     "@types/papaparse": "^5.5.2",
     "jszip": "^3.10.1",
     "next": "16.2.4",
+    "node-zklib": "^1.3.0",
     "papaparse": "^5.5.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",

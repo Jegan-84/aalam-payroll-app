@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
 import { useSnackbar } from '@/components/ui/snackbar'
+import { useConfirm } from '@/components/ui/confirm'
 import { saveHolidayAction, deleteHolidayAction } from '@/lib/masters/holidays'
 
 type Option = { id: number; code: string; name: string }
@@ -24,6 +25,7 @@ export function HolidaysManager({
 }: { fy: string; holidays: Holiday[]; locations: Option[]; projects: Option[] }) {
   const router = useRouter()
   const snack = useSnackbar()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
 
   const save = (e: React.FormEvent<HTMLFormElement>) => {
@@ -41,8 +43,13 @@ export function HolidaysManager({
     })
   }
 
-  const remove = (id: number) => {
-    if (!confirm('Delete this holiday? This cannot be undone.')) return
+  const remove = async (id: number) => {
+    if (!await confirm({
+      title: 'Delete this holiday?',
+      body: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })) return
     const fd = new FormData()
     fd.set('id', String(id))
     startTransition(async () => {

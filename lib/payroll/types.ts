@@ -15,6 +15,13 @@ export type StatutoryConfig = {
   esi_employee_percent: number          // 0.75
   esi_employer_percent: number          // 3.25
   esi_wage_ceiling: number              // 21000 (monthly gross threshold)
+  /**
+   * ESI calculation basis. Picked when the statutory period is rolled and
+   * locked thereafter. 'gross' = % of monthly gross (legacy default);
+   * 'basic' = % of Basic. The wage-ceiling check still runs against monthly
+   * gross either way (eligibility is gross-driven).
+   */
+  esi_basis: 'gross' | 'basic'
   gratuity_percent: number              // 4.81
   // CTC-structure percentages (configurable via /settings/statutory)
   basic_percent_of_gross: number        // 50

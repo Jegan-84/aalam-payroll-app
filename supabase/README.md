@@ -1,4 +1,4 @@
-# PayFlow — Supabase / SQL layer
+# PeopleStack — Supabase / SQL layer
 
 All schema changes live here as **raw SQL migrations** — no Supabase-specific
 DSL. The only Supabase-tied file is `migrations/20260419000006_row_level_security.sql`

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useBlockingActionState } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { saveEmployeeComponentAction, deleteEmployeeComponentAction } from '@/lib/components/actions'
 import type { ComponentFormErrors, ComponentFormState, EmployeeComponentInput } from '@/lib/components/schemas'
 
@@ -12,6 +13,7 @@ type Props = {
 }
 
 export function ComponentForm({ employeeId, componentId, defaults = {} }: Props) {
+  const confirm = useConfirm()
   const bound = saveEmployeeComponentAction.bind(null, componentId ?? null)
   const [state, action, pending] = useBlockingActionState<ComponentFormState, FormData>(bound, undefined)
   const err = (k: keyof ComponentFormErrors) => state?.errors?.[k]?.[0]
@@ -84,7 +86,17 @@ export function ComponentForm({ employeeId, componentId, defaults = {} }: Props)
             <input type="hidden" name="employee_id" value={employeeId} />
             <button
               type="submit"
-              onClick={(e) => { if (!confirm('Deactivate this component? Existing payslips are not affected.')) e.preventDefault() }}
+              onClick={async (e) => {
+                e.preventDefault()
+                const button = e.currentTarget
+                const ok = await confirm({
+                  title: 'Deactivate this component?',
+                  body: 'Existing payslips are not affected. Future cycles will skip it.',
+                  confirmLabel: 'Deactivate',
+                  tone: 'danger',
+                })
+                if (ok) button.form?.requestSubmit(button)
+              }}
               className="inline-flex h-9 items-center rounded-md border border-red-300 bg-red-50 px-4 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
             >
               Deactivate
@@ -95,7 +107,7 @@ export function ComponentForm({ employeeId, componentId, defaults = {} }: Props)
           <Link href={`/employees/${employeeId}/components`} className="inline-flex h-9 items-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
             Cancel
           </Link>
-          <button type="submit" disabled={pending} className="inline-flex h-9 items-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200">
+          <button type="submit" disabled={pending} className="inline-flex h-9 items-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50">
             {pending ? 'Saving…' : 'Save'}
           </button>
         </div>

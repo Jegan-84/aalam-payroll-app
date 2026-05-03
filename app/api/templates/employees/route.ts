@@ -20,6 +20,7 @@ const HEADERS = [
   'aadhaar_number',
   'uan_number',
   'esi_number',
+  'biometric_id',
   'department_code',        // must exist in Departments master
   'designation_code',       // must exist in Designations master
   'location_code',          // optional

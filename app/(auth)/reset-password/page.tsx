@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { ResetPasswordForm } from './reset-password-form'
 
-export const metadata = { title: 'Reset password — PayFlow' }
+export const metadata = { title: 'Reset password — PeopleStack' }
 
 type SP = Promise<{
   code?: string

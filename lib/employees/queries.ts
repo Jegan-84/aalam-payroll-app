@@ -18,6 +18,7 @@ export type EmployeeListRow = {
   work_email: string
   employment_status: string
   date_of_joining: string
+  profile_edit_enabled: boolean
   department: { code: string; name: string } | null
   designation: { code: string; name: string } | null
   location: { code: string; name: string } | null
@@ -37,6 +38,7 @@ export async function listEmployees(filters: EmployeeListFilters = {}) {
     .select(
       `
       id, employee_code, full_name_snapshot, work_email, employment_status, date_of_joining,
+      profile_edit_enabled,
       department:departments ( code, name ),
       designation:designations ( code, name ),
       location:locations ( code, name )

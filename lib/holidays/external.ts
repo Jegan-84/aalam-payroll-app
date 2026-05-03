@@ -1,9 +1,8 @@
 import 'server-only'
 
 // -----------------------------------------------------------------------------
-// External holiday providers — Nager.Date (free) + Calendarific (key-based).
-// Both are normalised to a single `ImportedHoliday` shape so the UI can show
-// either side-by-side.
+// External holiday provider — Calendarific (key-based).
+// Returns an `ImportedHoliday` shape so the UI can render the list directly.
 // -----------------------------------------------------------------------------
 
 export type HolidayType = 'public' | 'restricted' | 'optional'
@@ -18,10 +17,10 @@ export type ImportedHoliday = {
   /** Region / state codes if the provider returned them (e.g. 'IN-TN'). */
   regions: string[] | null
   /** Provider that returned this row. */
-  source: 'nager' | 'calendarific'
+  source: 'calendarific'
 }
 
-export type Provider = 'nager' | 'calendarific'
+export type Provider = 'calendarific'
 
 export type ProviderInfo = {
   id: Provider
@@ -34,34 +33,9 @@ export type ProviderInfo = {
   supportsRegion: boolean
 }
 
-// Country codes Nager.Date publishes holidays for. Sourced from
-// https://date.nager.at/api/v3/AvailableCountries — kept here as a static list
-// so the UI can warn upfront. India is *not* in this list; for IN/PK/LK use
-// Calendarific instead.
-const NAGER_SUPPORTED = new Set([
-  'AD','AL','AM','AR','AT','AU','AX','BA','BB','BD','BE','BG','BJ','BO','BR','BS','BW','BY','BZ',
-  'CA','CD','CG','CH','CL','CN','CO','CR','CU','CY','CZ','DE','DK','DO','EC','EE','EG','ES','FI',
-  'FO','FR','GA','GB','GD','GE','GG','GI','GL','GM','GR','GT','GY','HN','HR','HT','HU','ID','IE',
-  'IM','IS','IT','JE','JM','JP','KR','KZ','LI','LS','LT','LU','LV','MA','MC','MD','ME','MG','MK',
-  'MN','MS','MT','MZ','NA','NE','NG','NI','NL','NO','NZ','PA','PE','PG','PL','PR','PT','PY','RO',
-  'RS','RU','SE','SG','SI','SJ','SK','SM','SR','SV','TN','TR','UA','US','UY','VA','VE','VN','ZA',
-  'ZW',
-])
-
-export function isCountrySupportedByNager(country: string): boolean {
-  return NAGER_SUPPORTED.has(country.toUpperCase())
-}
-
 export function listProviders(): ProviderInfo[] {
   const calendarificKey = process.env.CALENDARIFIC_API_KEY
   return [
-    {
-      id: 'nager',
-      label: 'Nager.Date',
-      helper: 'Free, no key. ~120 countries, mostly EU + Americas. Does NOT include India, Pakistan, Sri Lanka, Bangladesh, UAE.',
-      available: true,
-      supportsRegion: false,
-    },
     {
       id: 'calendarific',
       label: 'Calendarific',
@@ -71,40 +45,6 @@ export function listProviders(): ProviderInfo[] {
       supportsRegion: true,
     },
   ]
-}
-
-// -----------------------------------------------------------------------------
-// Nager.Date — https://date.nager.at/swagger
-// GET /api/v3/PublicHolidays/{year}/{countryCode}
-// Response: [{ date, localName, name, countryCode, types: ['Public', 'Bank'], counties: ['IN-TN'] | null, ... }]
-// -----------------------------------------------------------------------------
-type NagerRow = {
-  date: string
-  localName: string
-  name: string
-  types: string[]
-  counties: string[] | null
-}
-
-export async function fetchFromNager(country: string, year: number): Promise<ImportedHoliday[]> {
-  const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/${encodeURIComponent(country.toUpperCase())}`
-  const rows = await fetchJsonSafe<NagerRow[]>(url, 'Nager.Date')
-  if (!rows || !Array.isArray(rows)) return []
-  return rows.map((r, idx) => ({
-    key: `nager:${country}:${year}:${idx}:${r.date}`,
-    date: r.date,
-    name: r.name || r.localName,
-    type: nagerTypeToHolidayType(r.types),
-    regions: r.counties,
-    source: 'nager',
-  }))
-}
-
-function nagerTypeToHolidayType(types: string[]): HolidayType {
-  // Nager has Public, Bank, School, Authorities, Optional, Observance.
-  if (types.includes('Public') || types.includes('Bank')) return 'public'
-  if (types.includes('Optional') || types.includes('Observance')) return 'optional'
-  return 'restricted'
 }
 
 // -----------------------------------------------------------------------------
@@ -175,7 +115,6 @@ export async function fetchExternalHolidays(opts: {
   year: number
   region?: string
 }): Promise<ImportedHoliday[]> {
-  if (opts.provider === 'nager') return fetchFromNager(opts.country, opts.year)
   if (opts.provider === 'calendarific') return fetchFromCalendarific(opts.country, opts.year, opts.region)
   throw new Error(`Unknown provider: ${opts.provider}`)
 }
@@ -194,7 +133,7 @@ async function fetchJsonSafe<T>(url: string, label: string): Promise<T | null> {
     res = await fetch(url, {
       cache: 'no-store',
       signal: controller.signal,
-      headers: { Accept: 'application/json', 'User-Agent': 'PayFlow/1.0' },
+      headers: { Accept: 'application/json', 'User-Agent': 'PeopleStack/1.0' },
     })
   } catch (err) {
     clearTimeout(timeout)

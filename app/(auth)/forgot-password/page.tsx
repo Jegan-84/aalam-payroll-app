@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ForgotPasswordForm } from './forgot-password-form'
 
-export const metadata = { title: 'Forgot password — PayFlow' }
+export const metadata = { title: 'Forgot password — PeopleStack' }
 
 export default function ForgotPasswordPage() {
   return (

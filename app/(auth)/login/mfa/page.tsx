@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getMfaStatus } from '@/lib/auth/mfa'
 import { MfaChallengeForm } from './_components/mfa-challenge-form'
 
-export const metadata = { title: 'Two-step verification — PayFlow' }
+export const metadata = { title: 'Two-step verification — PeopleStack' }
 
 export default async function MfaChallengePage() {
   // The user must already be signed in (AAL1) to see this page.

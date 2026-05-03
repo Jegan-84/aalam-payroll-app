@@ -21,11 +21,18 @@ type ConversionResult = {
 }
 
 export function ConvertTypeButton({
-  employeeId, currentType, employeeLabel,
+  employeeId, currentType, employeeLabel, renderTrigger,
 }: {
   employeeId: string
   currentType: string
   employeeLabel: string
+  /**
+   * Optional override for the trigger element. Receives an `open` callback —
+   * the consumer renders whatever clickable element it wants (e.g. a tile in
+   * the Quick Actions grid) and calls `open()` on click. If omitted, the
+   * default outline button is rendered.
+   */
+  renderTrigger?: (open: () => void) => React.ReactNode
 }) {
   const router = useRouter()
   const snack = useSnackbar()
@@ -60,15 +67,19 @@ export function ConvertTypeButton({
 
   const otherTypes = Object.keys(TYPE_LABELS).filter((t) => t !== currentType)
 
+  const openDialog = () => { setOpen(true); setErr(null); setResult(null) }
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => { setOpen(true); setErr(null); setResult(null) }}
-        className="inline-flex h-9 items-center whitespace-nowrap rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
-      >
-        Convert employment type →
-      </button>
+      {renderTrigger ? renderTrigger(openDialog) : (
+        <button
+          type="button"
+          onClick={openDialog}
+          className="inline-flex h-9 items-center whitespace-nowrap rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+        >
+          Convert employment type →
+        </button>
+      )}
 
       <Dialog
         open={open}

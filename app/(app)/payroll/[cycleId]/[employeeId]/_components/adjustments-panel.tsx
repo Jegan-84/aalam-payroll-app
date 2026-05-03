@@ -7,6 +7,19 @@ import { saveAdjustmentAction, deleteAdjustmentAction } from '@/lib/components/a
 
 const fmt = (n: number) => '₹ ' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(n))
 
+// Statutory components — derived from the salary structure or fixed by rule
+// (PF capped at ₹1,800/mo). HR can't override / skip these from the cycle.
+// ESI and Gratuity remain editable because they vary with applicability.
+//
+// Loan lines (LOAN_<id>) are also locked: amount is min(emi, outstanding)
+// and writes a ledger row on approve. Manual override would desync the loan
+// ledger. Same for loan perquisites (PERQ_<id>) — derived from outstanding.
+const STATUTORY_LOCKED_CODES = new Set(['BASIC', 'HRA', 'CONV', 'OTHERALLOW', 'MEDINS', 'PF_EE'])
+const isStatutoryLocked = (code: string) => {
+  const c = code.toUpperCase()
+  return STATUTORY_LOCKED_CODES.has(c) || c.startsWith('LOAN_') || c.startsWith('PERQ_')
+}
+
 type ItemComponent = {
   code: string
   name: string
@@ -117,8 +130,6 @@ export function AdjustmentsPanel({
     run(fd, deleteAdjustmentAction)
   }
 
-  const saveAddOn = (fd: FormData) => run(fd, saveAdjustmentAction)
-
   return (
     <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center justify-between">
@@ -174,48 +185,6 @@ export function AdjustmentsPanel({
         </p>
       </div>
 
-      <div>
-        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          One-off add-ons for this cycle
-        </h4>
-        {adjustments.filter((a) => a.action === 'add').length === 0 && (
-          <p className="text-xs text-slate-500">No one-off adjustments.</p>
-        )}
-        {adjustments.filter((a) => a.action === 'add').length > 0 && (
-          <table className="w-full text-sm">
-            <thead className="text-xs text-slate-500">
-              <tr>
-                <th className="py-1 text-left font-normal">Code</th>
-                <th className="py-1 text-left font-normal">Name</th>
-                <th className="py-1 text-left font-normal">Kind</th>
-                <th className="py-1 text-right font-normal">Amount</th>
-                <th className="py-1 text-right font-normal">{' '}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {adjustments.filter((a) => a.action === 'add').map((a) => (
-                <tr key={a.id}>
-                  <td className="py-1 font-mono text-xs">{a.code}</td>
-                  <td className="py-1">{a.name}</td>
-                  <td className="py-1">{a.kind}</td>
-                  <td className="py-1 text-right tabular-nums">{fmt(a.amount)}</td>
-                  <td className="py-1 text-right">
-                    <button
-                      type="button"
-                      onClick={() => clearAdjustment(a.id)}
-                      disabled={pending || readonly}
-                      className="text-xs underline text-red-700 dark:text-red-400 disabled:opacity-50"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {!readonly && <AddOnForm onSubmit={saveAddOn} pending={pending} cycleId={cycleId} employeeId={employeeId} />}
-      </div>
     </div>
   )
 }
@@ -232,7 +201,10 @@ function EditableRow({
   onSkip: () => void
   onClear: (id: string) => void
 }) {
-  const editable = row.kind === 'earning' || row.kind === 'deduction'
+  const editable =
+    (row.kind === 'earning' || row.kind === 'deduction') &&
+    !isStatutoryLocked(row.code)
+  const locked = isStatutoryLocked(row.code)
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState<string>(String(override?.amount ?? row.amount))
 
@@ -280,7 +252,14 @@ function EditableRow({
         )}
       </td>
       <td className="py-1 text-right">
-        {!editable ? (
+        {locked ? (
+          <span
+            title="Derived from the salary structure / statutory rule. Edit at /salary or /settings/statutory if the base needs to change."
+            className="text-[11px] text-slate-400"
+          >
+            🔒 statutory
+          </span>
+        ) : !editable ? (
           <span className="text-[11px] text-slate-400">—</span>
         ) : readonly ? (
           <span className="text-[11px] text-slate-400">locked</span>
@@ -311,48 +290,3 @@ function EditableRow({
   )
 }
 
-function AddOnForm({
-  cycleId, employeeId, onSubmit, pending,
-}: {
-  cycleId: string
-  employeeId: string
-  onSubmit: (fd: FormData) => void
-  pending: boolean
-}) {
-  const [code, setCode] = useState('')
-  const [name, setName] = useState('')
-  const [kind, setKind] = useState<'earning' | 'deduction'>('earning')
-  const [amount, setAmount] = useState('')
-
-  const submit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!code || !name || !amount) return
-    const fd = new FormData()
-    fd.set('cycle_id', cycleId)
-    fd.set('employee_id', employeeId)
-    fd.set('code', code.toUpperCase())
-    fd.set('name', name)
-    fd.set('kind', kind)
-    fd.set('amount', amount)
-    fd.set('action', 'add')
-    onSubmit(fd)
-    setCode(''); setName(''); setAmount('')
-  }
-
-  return (
-    <form onSubmit={submit} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-5">
-      <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code" className={inputCls} />
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Label" className={inputCls} />
-      <select value={kind} onChange={(e) => setKind(e.target.value as 'earning' | 'deduction')} className={inputCls}>
-        <option value="earning">Earning</option>
-        <option value="deduction">Deduction</option>
-      </select>
-      <input type="number" min="0" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount ₹" className={inputCls} />
-      <button type="submit" disabled={pending || !code || !name || !amount} className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200">
-        {pending ? 'Saving…' : 'Add'}
-      </button>
-    </form>
-  )
-}
-
-const inputCls = 'h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950'

@@ -17,7 +17,7 @@ import {
   ExpiringCompOffCard,
 } from '@/components/dashboard/widgets'
 
-export const metadata = { title: 'Dashboard — PayFlow' }
+export const metadata = { title: 'Dashboard — PeopleStack' }
 
 export default async function DashboardPage() {
   const me = await getUserWithRoles()

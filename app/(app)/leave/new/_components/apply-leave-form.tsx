@@ -12,23 +12,59 @@ type Props = {
   leaveTypes: { id: number; code: string; name: string; is_paid: boolean }[]
   weeklyOffDays: number[]
   holidayDates: string[]   // already within a reasonable horizon (e.g. next 12 months)
+  /**
+   * Pre-fill the form from a previously rejected/cancelled application.
+   * Submitting still creates a brand-new leave row — this just saves the
+   * user from re-typing every field.
+   */
+  prefill?: {
+    employee_id?: string
+    leave_type_id?: number
+    from_date?: string
+    to_date?: string
+    reason?: string | null
+    is_half_day?: boolean
+  }
+  /** Optional banner shown above the form (e.g. "Re-applying after rejection"). */
+  banner?: { kind: 'info' | 'warn'; text: string } | null
 }
 
-export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDates }: Props) {
+export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDates, prefill, banner }: Props) {
   const [state, action, pending] = useBlockingActionState(applyLeaveAction, undefined)
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [from, setFrom] = useState(prefill?.from_date ?? '')
+  const [to, setTo] = useState(prefill?.to_date ?? '')
+  const [isHalfDay, setIsHalfDay] = useState(prefill?.is_half_day ?? false)
 
   const holidaysSet = useMemo(() => new Set(holidayDates), [holidayDates])
-  const days = useMemo(() => {
+  const fullDays = useMemo(() => {
     if (!from || !to || to < from) return 0
     return countLeaveDays(from, to, { weeklyOffDays, holidayDates: holidaysSet })
   }, [from, to, weeklyOffDays, holidaysSet])
+
+  // Half-day applies only on a single-day range. The checkbox is rendered
+  // (and its value submitted) only when from == to, so if the user expands
+  // the range the input simply unmounts and the form receives no half-day
+  // flag — local state can stay set without affecting submission.
+  const sameDay = !!from && from === to
+  const halfDayEffective = sameDay && isHalfDay
+  const days = halfDayEffective ? 0.5 : fullDays
 
   const err = (k: keyof LeaveFormErrors) => state?.errors?.[k]?.[0]
 
   return (
     <form action={action} className="max-w-xl space-y-4">
+      {banner && (
+        <div
+          role="status"
+          className={`rounded-md border px-3 py-2 text-sm ${
+            banner.kind === 'warn'
+              ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
+              : 'border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200'
+          }`}
+        >
+          {banner.text}
+        </div>
+      )}
       {state?.errors?._form && (
         <div role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
           {state.errors._form[0]}
@@ -38,7 +74,7 @@ export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDa
       <div className="rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Employee" error={err('employee_id')} required>
-            <select name="employee_id" required defaultValue="" className={selectCls}>
+            <select name="employee_id" required defaultValue={prefill?.employee_id ?? ''} className={selectCls}>
               <option value="" disabled>Select employee</option>
               {employees.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -49,7 +85,7 @@ export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDa
           </Field>
 
           <Field label="Leave type" error={err('leave_type_id')} required>
-            <select name="leave_type_id" required defaultValue="" className={selectCls}>
+            <select name="leave_type_id" required defaultValue={prefill?.leave_type_id != null ? String(prefill.leave_type_id) : ''} className={selectCls}>
               <option value="" disabled>Select type</option>
               {leaveTypes.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -82,15 +118,33 @@ export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDa
           </Field>
 
           <Field label="Reason">
-            <input name="reason" className={inputCls} placeholder="Optional" />
+            <input name="reason" defaultValue={prefill?.reason ?? ''} className={inputCls} placeholder="Optional" />
           </Field>
 
           <div className="flex items-end">
             <div className="w-full rounded-md border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950">
-              <span className="text-slate-500 dark:text-slate-400">Working days in range:</span>{' '}
+              <span className="text-slate-500 dark:text-slate-400">{halfDayEffective ? 'Half-day leave:' : 'Working days in range:'}</span>{' '}
               <span className="font-semibold text-slate-900 dark:text-slate-100">{days}</span>
             </div>
           </div>
+
+          {sameDay && (
+            <div className="sm:col-span-2">
+              <label
+                className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                title="Half-day applies only when the from and to dates match. 0.5 day will be deducted from your balance."
+              >
+                <input
+                  type="checkbox"
+                  name="is_half_day"
+                  checked={isHalfDay}
+                  onChange={(e) => setIsHalfDay(e.target.checked)}
+                />
+                Apply as <strong>half-day</strong> leave (0.5 day)
+              </label>
+              {err('is_half_day') && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{err('is_half_day')}</p>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -101,7 +155,7 @@ export function ApplyLeaveForm({ employees, leaveTypes, weeklyOffDays, holidayDa
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex h-9 items-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+          className="inline-flex h-9 items-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? 'Submitting…' : 'Submit application'}
         </button>

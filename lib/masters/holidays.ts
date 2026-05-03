@@ -6,7 +6,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '@/lib/auth/dal'
 import {
   fetchExternalHolidays,
-  isCountrySupportedByNager,
   type ImportedHoliday,
   type Provider,
 } from '@/lib/holidays/external'
@@ -300,15 +299,9 @@ export async function fetchExternalHolidaysAction(
   const year     = Number(formData.get('year') ?? 0)
   const region   = String(formData.get('region') ?? '').trim() || undefined
 
-  if (!['nager', 'calendarific'].includes(provider)) return { error: 'Unknown provider' }
+  if (provider !== 'calendarific') return { error: 'Unknown provider' }
   if (!country || country.length !== 2) return { error: 'Country must be a 2-letter ISO code (e.g. IN)' }
   if (!year || year < 2000 || year > 2100) return { error: 'Invalid year' }
-
-  if (provider === 'nager' && !isCountrySupportedByNager(country)) {
-    return {
-      error: `Nager.Date doesn't publish holidays for ${country}. Switch to Calendarific (free tier supports India + state-wise) or use the Mark-weekends / CSV-upload flows below.`,
-    }
-  }
 
   try {
     const holidays = await fetchExternalHolidays({ provider, country, year, region })

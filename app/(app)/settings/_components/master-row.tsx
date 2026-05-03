@@ -9,7 +9,12 @@ type FieldDef = {
   type?: 'text' | 'checkbox'
   placeholder?: string
   upper?: boolean
-  readOnly?: boolean
+  /**
+   * `true`     — always read-only.
+   * `'on-edit'` — read-only only when this row is in edit mode (i.e. has an id).
+   *               Use for code fields that must stay stable post-creation.
+   */
+  readOnly?: boolean | 'on-edit'
   colWidth?: string // tailwind width e.g. 'w-28'
 }
 
@@ -28,6 +33,7 @@ export function MasterRow({ action, fields, defaults = {}, idKey = 'id', saveLab
   const [state, formAction, pending] = useBlockingActionState<Result, FormData>(action, undefined)
   const [justSaved, setJustSaved] = useState(false)
   const err = (k: string) => state?.errors?.[k]?.[0]
+  const isEdit = defaults[idKey] != null
 
   // Show "saved" briefly after success
   if (state?.ok && !justSaved) setJustSaved(true)
@@ -62,15 +68,17 @@ export function MasterRow({ action, fields, defaults = {}, idKey = 'id', saveLab
               </label>
             )
           }
+          const isReadOnly = f.readOnly === true || (f.readOnly === 'on-edit' && isEdit)
           return (
             <div key={f.key} className="flex flex-col">
               <input
                 name={f.key}
                 defaultValue={v == null ? '' : String(v)}
                 placeholder={f.placeholder ?? f.label}
-                readOnly={f.readOnly}
-                onInput={f.upper ? (e) => { (e.currentTarget as HTMLInputElement).value = (e.currentTarget as HTMLInputElement).value.toUpperCase() } : undefined}
-                className={`h-8 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 ${f.colWidth ?? 'w-44'} ${f.readOnly ? 'bg-slate-50 dark:bg-slate-900' : ''}`}
+                readOnly={isReadOnly}
+                title={isReadOnly && f.readOnly === 'on-edit' ? `${f.label} can't be changed after creation.` : undefined}
+                onInput={f.upper && !isReadOnly ? (e) => { (e.currentTarget as HTMLInputElement).value = (e.currentTarget as HTMLInputElement).value.toUpperCase() } : undefined}
+                className={`h-8 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 ${f.colWidth ?? 'w-44'} ${isReadOnly ? 'cursor-not-allowed bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400' : ''}`}
               />
               {err(f.key) && <span className="text-[11px] text-red-600">{err(f.key)}</span>}
             </div>
@@ -80,7 +88,7 @@ export function MasterRow({ action, fields, defaults = {}, idKey = 'id', saveLab
         <button
           type="submit"
           disabled={pending}
-          className="h-8 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+          className="inline-flex h-8 items-center rounded-md bg-brand-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? '…' : saveLabel}
         </button>

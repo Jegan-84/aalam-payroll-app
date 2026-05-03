@@ -12,7 +12,7 @@ export default function Article() {
     <>
       <h2>Leave year</h2>
       <p>
-        PayFlow runs on a <strong>calendar leave year</strong> — Jan 1 to Dec 31.
+        PeopleStack runs on a <strong>calendar leave year</strong> — Jan 1 to Dec 31.
         This is independent of the payroll FY (Apr–Mar) used for tax. Balances reset each January.
       </p>
 
@@ -52,6 +52,15 @@ export default function Article() {
         <li>The form computes your day count automatically (skipping weekly offs and holidays for your project).</li>
         <li>Submit. The application appears in &quot;My applications&quot; with status <code>submitted</code>.</li>
       </ol>
+
+      <h2>Half-day leave</h2>
+      <p>
+        When the <strong>from</strong> and <strong>to</strong> dates are the same day, an
+        <em> &quot;Apply as half-day&quot;</em> checkbox appears below the date pickers. Tick it to file the
+        application as a 0.5-day leave — the working-days line flips to <code>Half-day leave: 0.5</code>
+        and only half a day is deducted from your balance on approval. The half-day flag is locked to
+        single-day applications; expanding the range hides the checkbox automatically.
+      </p>
 
       <div className="callout callout-warn">
         <strong>Watch out:</strong> If your range covers project holidays or weekends, those days don&apos;t

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import {
   approveCycleAction,
   computeCycleAction,
@@ -14,16 +15,17 @@ type Status = 'draft' | 'computed' | 'approved' | 'locked' | 'paid'
 
 export function CycleControls({ cycleId, status }: { cycleId: string; status: Status }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [skipped, setSkipped] = useState<string[]>([])
 
-  const run = (
+  const run = async (
     action: (fd: FormData) => Promise<{ ok?: true; error?: string; count?: number; skipped?: string[] }>,
     label: string,
     confirmMsg?: string,
   ) => {
-    if (confirmMsg && !confirm(confirmMsg)) return
+    if (confirmMsg && !await confirm({ body: confirmMsg, confirmLabel: label, tone: 'danger' })) return
     setMsg(null)
     setSkipped([])
     startTransition(async () => {

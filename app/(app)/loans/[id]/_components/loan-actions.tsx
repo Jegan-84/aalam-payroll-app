@@ -3,19 +3,21 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBlockingTransition } from '@/lib/ui/action-blocker'
+import { useConfirm } from '@/components/ui/confirm'
 import { forecloseLoanAction, writeOffLoanAction } from '@/lib/loans/actions'
 
 export function LoanActions({ id, status }: { id: string; status: 'active' | 'closed' | 'foreclosed' | 'written_off' }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useBlockingTransition()
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
-  const run = (
+  const run = async (
     action: (fd: FormData) => Promise<{ ok?: true; error?: string }>,
     label: string,
     confirmMsg: string,
   ) => {
-    if (!confirm(confirmMsg)) return
+    if (!await confirm({ body: confirmMsg, confirmLabel: label, tone: 'danger' })) return
     setMsg(null)
     startTransition(async () => {
       const fd = new FormData()
