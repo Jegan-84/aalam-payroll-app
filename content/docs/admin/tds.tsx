@@ -47,7 +47,7 @@ export default function Article() {
       </p>
       <ol>
         <li><code>/tds</code> → Form 16 → pick FY → generate.</li>
-        <li>Each employee gets a PDF combining Part A (from TRACES) + Part B (gross / deductions / tax computed by PayFlow).</li>
+        <li>Each employee gets a PDF combining Part A (from TRACES) + Part B (gross / deductions / tax computed by PeopleStack).</li>
         <li>Distribution: PDF lands on <code>/me/payslips</code> for the employee. Email-out is manual today.</li>
       </ol>
 

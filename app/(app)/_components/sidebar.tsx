@@ -24,7 +24,6 @@ const GROUPS: NavGroup[] = [
       { href: '/salary',            label: 'Salary Structures', icon: <IconCoins /> },
       { href: '/salary/templates',  label: 'Salary Templates',  icon: <IconLayers />, sub: true },
       { href: '/attendance',        label: 'Attendance',        icon: <IconCalendar /> },
-      { href: '/attendance/punches', label: 'Biometric Punches', icon: <IconCalendar />, sub: true },
       { href: '/leave',             label: 'Leave',             icon: <IconSun /> },
       { href: '/leave/balances',    label: 'Leave Balances',    icon: <IconGauge />, sub: true },
       { href: '/comp-off',          label: 'Comp Off',           icon: <IconSun />, sub: true },
@@ -76,8 +75,8 @@ const ESS_GROUP: NavGroup = {
   ],
 }
 
-const STORAGE_KEY = 'payflow.sidebar_collapsed'
-const SIDEBAR_EVENT = 'payflow:sidebar-toggle'
+const STORAGE_KEY = 'peoplestack.sidebar_collapsed'
+const SIDEBAR_EVENT = 'peoplestack:sidebar-toggle'
 
 function subscribeSidebar(cb: () => void) {
   window.addEventListener(SIDEBAR_EVENT, cb)
@@ -137,7 +136,7 @@ export function Sidebar({
         </div>
         {!isCollapsed && (
           <div className="leading-tight">
-            <div className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">PayFlow</div>
+            <div className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">PeopleStack</div>
             <div className="text-[11px] font-medium uppercase tracking-wider text-brand-700 dark:text-brand-300">Aalam</div>
           </div>
         )}
@@ -213,7 +212,7 @@ export function Sidebar({
             className={[
               'flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900',
               'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
-              isCollapsed ? 'h-9 w-9' : 'h-9 flex-1 gap-1.5 px-3 text-xs font-medium',
+              isCollapsed ? 'h-9 w-9' : 'h-9 flex-1 gap-1.5 whitespace-nowrap px-3 text-xs font-medium',
             ].join(' ')}
           >
             {isCollapsed ? <IconChevronRight /> : (<><IconChevronLeft /><span>Collapse</span></>)}
@@ -226,7 +225,7 @@ export function Sidebar({
               className={[
                 'flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700',
                 'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-red-900 dark:hover:bg-red-950/40 dark:hover:text-red-400',
-                isCollapsed ? 'h-9 w-9' : 'h-9 w-full gap-1.5 px-3 text-xs font-medium',
+                isCollapsed ? 'h-9 w-9' : 'h-9 w-full gap-1.5 whitespace-nowrap px-3 text-xs font-medium',
               ].join(' ')}
             >
               <IconLogOut />

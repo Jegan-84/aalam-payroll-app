@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getLeaveApplication } from '@/lib/leave/queries'
 import { approveLeaveAction, rejectLeaveAction, cancelLeaveAction } from '@/lib/leave/actions'
@@ -129,6 +130,23 @@ export default async function LeaveDetailPage({ params }: { params: PP }) {
             Cancel application
           </button>
         </form>
+      )}
+
+      {(app.status === 'rejected' || app.status === 'cancelled') && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
+          <div className="text-sm font-medium text-amber-900 dark:text-amber-200">
+            Need to apply again?
+          </div>
+          <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
+            This application is <strong>{app.status}</strong> and can&apos;t be edited. Use Re-apply to start a fresh application pre-filled with these values — you can change anything before submitting.
+          </p>
+          <Link
+            href={`/leave/new?from_application=${app.id}`}
+            className="mt-3 inline-flex h-9 items-center rounded-md bg-amber-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-amber-700"
+          >
+            Re-apply with these details
+          </Link>
+        </div>
       )}
     </div>
   )

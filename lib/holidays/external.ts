@@ -133,7 +133,7 @@ async function fetchJsonSafe<T>(url: string, label: string): Promise<T | null> {
     res = await fetch(url, {
       cache: 'no-store',
       signal: controller.signal,
-      headers: { Accept: 'application/json', 'User-Agent': 'PayFlow/1.0' },
+      headers: { Accept: 'application/json', 'User-Agent': 'PeopleStack/1.0' },
     })
   } catch (err) {
     clearTimeout(timeout)

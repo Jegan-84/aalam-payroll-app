@@ -122,7 +122,17 @@ export default async function MyLeavePage() {
                   <Td className="text-xs text-slate-500">{new Date(r.applied_at).toLocaleDateString('en-IN', { dateStyle: 'medium' })}</Td>
                   <Td><Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge></Td>
                   <Td>
-                    <span className="text-xs text-slate-500">{r.reason ?? '—'}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-slate-500">{r.reason ?? '—'}</span>
+                      {(r.status === 'rejected' || r.status === 'cancelled') && (
+                        <Link
+                          href={`/me/leave/new?from_application=${r.id}`}
+                          className="shrink-0 text-[11px] font-medium text-brand-700 hover:underline dark:text-brand-400"
+                        >
+                          Re-apply →
+                        </Link>
+                      )}
+                    </div>
                   </Td>
                 </tr>
               ))}

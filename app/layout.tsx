@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "PayFlow", template: "%s · PayFlow" },
+  title: { default: "PeopleStack", template: "%s · PeopleStack" },
   description: "Aalam payroll management",
 };
 

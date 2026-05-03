@@ -15,8 +15,11 @@ import { bulkNotifyEmployees } from '@/lib/notifications/service'
 import { computeMonthlyPayroll } from '@/lib/payroll/monthly'
 import { getTaxSlabsForFy } from '@/lib/payroll/queries'
 import { getOrgPtState, getPtSlabs, getStatutoryConfig } from '@/lib/salary/queries'
-import { getFyContext } from '@/lib/leave/queries'
-import { getHolidaysForMonth, getWeeklyOffDays } from '@/lib/attendance/queries'
+import {
+  getFyContext,
+  getHolidaysForMonth,
+  getWeeklyOffDays,
+} from '@/lib/leave/queries'
 import { resolveFy } from '@/lib/leave/engine'
 
 type Admin = ReturnType<typeof createAdminClient>

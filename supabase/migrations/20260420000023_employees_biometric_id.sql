@@ -2,7 +2,7 @@
 -- Add biometric_id to employees
 -- =============================================================================
 -- Used by attendance integrations (punch / face / fingerprint devices) to map
--- a device-side identifier back to a PayFlow employee.
+-- a device-side identifier back to a PeopleStack employee.
 -- Optional. Unique when set so the same device id can't be assigned twice.
 -- =============================================================================
 

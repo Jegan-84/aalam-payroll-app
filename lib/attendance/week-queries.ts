@@ -55,16 +55,9 @@ export async function getEmployeeWeek(employeeId: string, anchorIso: string): Pr
   const fromIso = isoDate(from)
   const toIso = isoDate(to)
 
-  // Punches in window
-  const { data: punchesData } = await supabase
-    .from('device_punches')
-    .select('punch_time')
-    .eq('employee_id', employeeId)
-    .gte('punch_time', fromIso + 'T00:00:00.000Z')
-    .lte('punch_time', toIso + 'T23:59:59.999Z')
-    .order('punch_time')
-  const punches = (punchesData ?? []) as Array<{ punch_time: string }>
-
+  // Biometric punches were retired; firstIn/lastOut/hoursWorked are always
+  // null until the new biometric flow lands. The week view still surfaces
+  // leave + holiday + weekend correctly.
   // Holidays in window (project + location scoped)
   const holidaySet = await getHolidaysForEmployeeInRange(employeeId, fromIso, toIso)
   // Pull names too — getHolidaysForEmployeeInRange returns just dates, so re-query for labels.
@@ -99,14 +92,6 @@ export async function getEmployeeWeek(employeeId: string, anchorIso: string): Pr
     }
   }
 
-  // Bucket punches by day
-  const punchesByDay = new Map<string, string[]>()
-  for (const p of punches) {
-    const day = p.punch_time.slice(0, 10)
-    if (!punchesByDay.has(day)) punchesByDay.set(day, [])
-    punchesByDay.get(day)!.push(p.punch_time)
-  }
-
   const rows: WeekDayRow[] = []
   for (let i = 0; i < 7; i++) {
     const cur = new Date(from.getTime() + i * 86_400_000)
@@ -115,13 +100,6 @@ export async function getEmployeeWeek(employeeId: string, anchorIso: string): Pr
     const dayLabel = DAY_LABELS[dow]
     const dayNumber = String(cur.getUTCDate()).padStart(2, '0')
 
-    const dayPunches = (punchesByDay.get(iso) ?? []).sort()
-    const firstIn = dayPunches[0] ?? null
-    const lastOut = dayPunches.length > 1 ? dayPunches[dayPunches.length - 1] : null
-    const hoursWorked = firstIn && lastOut
-      ? Math.round((new Date(lastOut).getTime() - new Date(firstIn).getTime()) / 3_600_000 * 100) / 100
-      : null
-
     let status: WeekDayStatus
     let centerLabel: string
 
@@ -129,11 +107,7 @@ export async function getEmployeeWeek(employeeId: string, anchorIso: string): Pr
     const holidayN = holidayName.get(iso)
     const leaveCode = leaveByDate.get(iso)
 
-    if (firstIn) {
-      // Worked, regardless of weekend / leave — punches win.
-      status = 'present'
-      centerLabel = 'Office-in'
-    } else if (holidayN) {
+    if (holidayN) {
       status = 'holiday'
       centerLabel = `Holiday: ${holidayN}`
     } else if (leaveCode) {
@@ -143,13 +117,15 @@ export async function getEmployeeWeek(employeeId: string, anchorIso: string): Pr
       status = 'weekend'
       centerLabel = 'Weekend'
     } else {
+      // No punches available since biometric sync is retired. Default to a
+      // neutral "Working day" until the new flow records actual presence.
       status = 'absent'
-      centerLabel = 'Absent'
+      centerLabel = 'Working day'
     }
 
     rows.push({
       date: iso, dayLabel, dayNumber, status, centerLabel,
-      firstIn, lastOut, hoursWorked,
+      firstIn: null, lastOut: null, hoursWorked: null,
     })
   }
 

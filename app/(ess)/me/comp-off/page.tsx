@@ -7,6 +7,8 @@ import { MyCompOffRequest } from './_components/comp-off-request'
 
 export const metadata = { title: 'My Comp Off' }
 
+type SP = Promise<{ from_request?: string }>
+
 const STATUS_TONE: Record<string, 'warn' | 'success' | 'danger' | 'neutral'> = {
   active:   'success',
   used:     'neutral',
@@ -14,12 +16,36 @@ const STATUS_TONE: Record<string, 'warn' | 'success' | 'danger' | 'neutral'> = {
   revoked:  'danger',
 }
 
-export default async function MyCompOffPage() {
+export default async function MyCompOffPage({ searchParams }: { searchParams: SP }) {
+  const sp = await searchParams
   const { employeeId } = await getCurrentEmployee()
   const [requests, grants] = await Promise.all([
     listMyCompOffRequests(employeeId),
     listEmployeeCompOff(employeeId),
   ])
+
+  // Pre-fill the request form from a previously rejected / cancelled comp-off
+  // (only if it belongs to this employee — listMyCompOffRequests already
+  // filters that, so a simple .find is safe).
+  let prefill: { work_date: string; days_requested: number; reason: string | null } | undefined
+  let banner: { kind: 'info' | 'warn'; text: string } | null = null
+  if (sp.from_request) {
+    const src = requests.find((r) => r.id === sp.from_request)
+    if (src && (src.status === 'rejected' || src.status === 'cancelled')) {
+      prefill = {
+        work_date: src.work_date,
+        days_requested: Number(src.days_requested),
+        reason: src.reason,
+      }
+      banner = {
+        kind: src.status === 'rejected' ? 'warn' : 'info',
+        text:
+          src.status === 'rejected'
+            ? `Re-applying after rejection. Edit anything that needs to change before submitting — this creates a new request.`
+            : `Pre-filled from a cancelled request. Submitting creates a new request.`,
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -28,7 +54,7 @@ export default async function MyCompOffPage() {
         subtitle="Worked on a holiday or weekend? Request comp off here. HR approves it, and you get 30 days from the work date to use it."
       />
 
-      <MyCompOffRequest requests={requests} />
+      <MyCompOffRequest requests={requests} prefill={prefill} banner={banner} />
 
       <Card className="overflow-hidden p-0">
         <div className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:text-slate-50">

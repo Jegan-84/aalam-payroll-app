@@ -1,4 +1,4 @@
-# PayFlow
+# PeopleStack
 
 In-house payroll software for Aalam — single tenant, Indian statutory (Tamil Nadu), FY April–March.
 

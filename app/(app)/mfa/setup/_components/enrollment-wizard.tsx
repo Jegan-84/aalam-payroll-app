@@ -110,7 +110,7 @@ export function EnrollmentWizard({ factors, hasVerified }: Props) {
                 {formatSecret(enrollment.secret)}
               </code>
               <div className="mt-2 text-[11px] text-slate-500">
-                Account name: <span className="font-medium text-slate-700 dark:text-slate-300">Aalam PayFlow</span>
+                Account name: <span className="font-medium text-slate-700 dark:text-slate-300">Aalam PeopleStack</span>
               </div>
             </div>
           </div>

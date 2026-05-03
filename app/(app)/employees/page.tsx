@@ -3,21 +3,12 @@ import { listEmployees, getMasterOptions } from '@/lib/employees/queries'
 import { PageHeader } from '@/components/ui/page-header'
 import { ButtonLink } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { EmployeeBulkUpload } from './_components/employee-bulk-upload'
+import { EmployeesBulkTable } from './_components/employees-bulk-table'
 
 export const metadata = { title: 'Employees' }
 
 type SP = Promise<{ q?: string; department_id?: string; status?: string; page?: string }>
-
-const STATUS_TONE: Record<string, 'success' | 'warn' | 'danger' | 'neutral' | 'info'> = {
-  active: 'success',
-  on_notice: 'warn',
-  resigned: 'warn',
-  terminated: 'danger',
-  exited: 'neutral',
-  on_hold: 'info',
-}
 
 export default async function EmployeesListPage({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams
@@ -84,54 +75,7 @@ export default async function EmployeesListPage({ searchParams }: { searchParams
         </form>
       </Card>
 
-      <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
-            <thead className="bg-slate-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-950/60 dark:text-slate-400">
-              <tr>
-                <Th>Code</Th>
-                <Th>Name</Th>
-                <Th>Email</Th>
-                <Th>Department</Th>
-                <Th>Designation</Th>
-                <Th>Status</Th>
-                <Th>DoJ</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm dark:divide-slate-800">
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
-                    <div className="text-sm text-slate-500">No employees yet.</div>
-                    <Link href="/employees/new" className="mt-1 inline-block text-sm font-medium text-brand-700 hover:underline">
-                      Add your first employee →
-                    </Link>
-                  </td>
-                </tr>
-              )}
-              {rows.map((e) => (
-                <tr key={e.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-950">
-                  <Td>
-                    <Link href={`/employees/${e.id}`} className="font-medium text-slate-900 underline-offset-2 hover:text-brand-700 hover:underline dark:text-slate-100">
-                      {e.employee_code}
-                    </Link>
-                  </Td>
-                  <Td>{e.full_name_snapshot}</Td>
-                  <Td className="text-slate-500">{e.work_email}</Td>
-                  <Td>{e.department?.name ?? '—'}</Td>
-                  <Td>{e.designation?.name ?? '—'}</Td>
-                  <Td>
-                    <Badge tone={STATUS_TONE[e.employment_status] ?? 'neutral'}>
-                      {e.employment_status.replace('_', ' ')}
-                    </Badge>
-                  </Td>
-                  <Td className="tabular-nums">{e.date_of_joining}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <EmployeesBulkTable rows={rows} />
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
@@ -156,13 +100,6 @@ export default async function EmployeesListPage({ searchParams }: { searchParams
 
 const inputCls = 'h-9 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-950'
 const selectCls = 'h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950'
-
-function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-4 py-3 ${className}`}>{children}</th>
-}
-function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 text-slate-900 dark:text-slate-100 ${className}`}>{children}</td>
-}
 
 function buildPageHref(sp: Record<string, string | undefined>, page: number) {
   const params = new URLSearchParams()

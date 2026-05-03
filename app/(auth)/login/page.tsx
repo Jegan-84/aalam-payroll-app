@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { LoginForm } from './login-form'
 
-export const metadata = { title: 'Sign in — PayFlow' }
+export const metadata = { title: 'Sign in — PeopleStack' }
 
 type SP = Promise<{ reset?: string }>
 
@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams: SP }) 
             <Image src="/aalamLogo.png" alt="Aalam" width={44} height={44} className="h-11 w-11 object-contain" priority />
           </div>
           <h1 className="mt-4 text-[22px] font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            Welcome to PayFlow
+            Welcome to PeopleStack
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Aalam&apos;s in-house payroll console. Sign in to continue.

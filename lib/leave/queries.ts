@@ -3,7 +3,32 @@ import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { verifySession } from '@/lib/auth/dal'
 import { resolveFy } from '@/lib/leave/engine'
-import { getWeeklyOffDays } from '@/lib/attendance/queries'
+
+// Org's weekly off days (0=Sun..6=Sat). Used by leave + payroll.
+// Originally in lib/attendance/queries.ts; lifted here when the attendance
+// module was retired so leave/payroll have a stable home for it.
+export const getWeeklyOffDays = cache(async (): Promise<number[]> => {
+  await verifySession()
+  const supabase = await createClient()
+  const { data } = await supabase.from('organizations').select('weekly_off_days').limit(1).maybeSingle()
+  return ((data?.weekly_off_days ?? [0]) as number[]).filter((d) => Number.isInteger(d))
+})
+
+// All holidays in a given calendar month (no project / location filter).
+// Originally in lib/attendance/queries.ts; only payroll/actions consumes it.
+export const getHolidaysForMonth = cache(async (year: number, month: number): Promise<Set<string>> => {
+  await verifySession()
+  const supabase = await createClient()
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const first = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastIso = `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`
+  const { data } = await supabase
+    .from('holidays')
+    .select('holiday_date')
+    .gte('holiday_date', first)
+    .lte('holiday_date', lastIso)
+  return new Set((data ?? []).map((h) => h.holiday_date as string))
+})
 
 export type LeaveStatus = 'pending' | 'manager_approved' | 'approved' | 'rejected' | 'cancelled'
 

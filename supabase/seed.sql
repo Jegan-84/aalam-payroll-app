@@ -1,5 +1,5 @@
 -- =============================================================================
--- PayFlow — Master data seed
+-- PeopleStack — Master data seed
 -- Idempotent: safe to re-run. Uses ON CONFLICT DO NOTHING / UPDATE.
 -- =============================================================================
 

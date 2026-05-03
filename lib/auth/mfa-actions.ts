@@ -52,6 +52,7 @@ export async function verifyEnrollmentAction(
   if (verErr) return { errors: { code: ['Invalid or expired code. Try again.'] } }
 
   revalidatePath('/mfa/setup')
+  revalidatePath('/me/security')
   return { ok: true }
 }
 
@@ -87,4 +88,5 @@ export async function unenrollFactorAction(formData: FormData): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.mfa.unenroll({ factorId })
   revalidatePath('/mfa/setup')
+  revalidatePath('/me/security')
 }

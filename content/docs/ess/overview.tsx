@@ -2,7 +2,7 @@ import type { DocMeta } from '@/components/docs/doc-layout'
 
 export const meta: DocMeta = {
   slug: 'overview',
-  title: 'Welcome to PayFlow',
+  title: 'Welcome to PeopleStack',
   summary: 'A 60-second tour of the employee portal — what you can do here, and where to find it.',
   group: 'Getting started',
 }
@@ -10,9 +10,9 @@ export const meta: DocMeta = {
 export default function Article() {
   return (
     <>
-      <h2>What is PayFlow?</h2>
+      <h2>What is PeopleStack?</h2>
       <p>
-        PayFlow is Aalam&apos;s in-house payroll system. The pages you see at <code>/me/*</code> are
+        PeopleStack is Aalam&apos;s in-house payroll system. The pages you see at <code>/me/*</code> are
         the <em>Employee Self-Service</em> portal. From here you handle anything to do with your
         own pay, leave, and tax — without emailing HR.
       </p>

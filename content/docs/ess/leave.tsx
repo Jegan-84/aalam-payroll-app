@@ -12,7 +12,7 @@ export default function Article() {
     <>
       <h2>Leave year</h2>
       <p>
-        PayFlow runs on a <strong>calendar leave year</strong> — Jan 1 to Dec 31.
+        PeopleStack runs on a <strong>calendar leave year</strong> — Jan 1 to Dec 31.
         This is independent of the payroll FY (Apr–Mar) used for tax. Balances reset each January.
       </p>
 
